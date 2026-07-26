@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1760895889711,
+      "tag": "0000_unknown_squadron_supreme",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1769899263625,
+      "tag": "0001_deep_grim_reaper",
+      "breakpoints": true
+    }
+  ]
+}
