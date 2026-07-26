@@ -25,7 +25,7 @@ const posts = [
     excerpt:
       "Cash flow potential, school districts, vacancy rates, and what we're actually seeing on the ground in North County's most active submarkets.",
     date: "April 10, 2026",
-    href: "https://luxestl.com/neighborhoods/north-county.html",
+    href: "/neighborhoods/north-county",
   },
   {
     category: "Short-Term Rental",
@@ -57,7 +57,7 @@ const posts = [
     excerpt:
       "Population growth, corporate relocations, and top-rated schools are driving demand that supply can't keep up with. Here's how investors are capitalizing.",
     date: "February 12, 2026",
-    href: "https://luxestl.com/neighborhoods/st-charles.html",
+    href: "/neighborhoods/st-charles",
   },
 ];
 
@@ -153,41 +153,54 @@ export default function Blog() {
       <section className="py-8 pb-24 bg-white">
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => (
-              <a
-                key={post.title}
-                href={post.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block bg-[var(--luxe-light)] rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-lg transition-all"
-              >
-                {/* Image placeholder */}
-                <div className="h-48 bg-[var(--luxe-navy)]/90 flex items-center justify-center">
-                  <svg className="w-12 h-12 text-[var(--luxe-gold)]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                  </svg>
-                </div>
-                {/* Content */}
-                <div className="p-6">
-                  <span className={`inline-block text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-3 ${categoryColor[post.category] || "bg-gray-100 text-gray-700"}`}>
-                    {post.category}
-                  </span>
-                  <h3
-                    className="font-bold text-[var(--luxe-navy)] mb-3 leading-snug group-hover:text-[var(--luxe-gold)] transition-colors"
-                    style={{ fontFamily: "var(--font-heading)" }}
-                  >
-                    {post.title}
-                  </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-5">{post.excerpt}</p>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">{post.date}</span>
-                    <span className="text-[var(--luxe-gold)] font-semibold group-hover:translate-x-1 transition-transform inline-block">
-                      Read →
-                    </span>
+            {posts.map((post) => {
+              const isInternal = post.href.startsWith("/");
+              const cardCls = "group block bg-[var(--luxe-light)] rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-lg transition-all";
+              const cardInner = (
+                <>
+                  {/* Image placeholder */}
+                  <div className="h-48 bg-[var(--luxe-navy)]/90 flex items-center justify-center">
+                    <svg className="w-12 h-12 text-[var(--luxe-gold)]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                    </svg>
                   </div>
-                </div>
-              </a>
-            ))}
+                  {/* Content */}
+                  <div className="p-6">
+                    <span className={`inline-block text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-3 ${categoryColor[post.category] || "bg-gray-100 text-gray-700"}`}>
+                      {post.category}
+                    </span>
+                    <h3
+                      className="font-bold text-[var(--luxe-navy)] mb-3 leading-snug group-hover:text-[var(--luxe-gold)] transition-colors"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {post.title}
+                    </h3>
+                    <p className="text-gray-500 text-sm leading-relaxed mb-5">{post.excerpt}</p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-400">{post.date}</span>
+                      <span className="text-[var(--luxe-gold)] font-semibold group-hover:translate-x-1 transition-transform inline-block">
+                        Read →
+                      </span>
+                    </div>
+                  </div>
+                </>
+              );
+              return isInternal ? (
+                <Link key={post.title} href={post.href} className={cardCls}>
+                  {cardInner}
+                </Link>
+              ) : (
+                <a
+                  key={post.title}
+                  href={post.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cardCls}
+                >
+                  {cardInner}
+                </a>
+              );
+            })}
           </div>
         </div>
       </section>

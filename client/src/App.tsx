@@ -34,6 +34,11 @@ import Apply from "@/pages/Apply";
 import AdminApplications from "@/pages/AdminApplications";
 import Vouchers from "@/pages/Vouchers";
 import Blog from "@/pages/Blog";
+import NorthCounty from "@/pages/NorthCounty";
+import StCharles from "@/pages/StCharles";
+import Kirkwood from "@/pages/Kirkwood";
+import WebsterGroves from "@/pages/WebsterGroves";
+import SouthCity from "@/pages/SouthCity";
 
 function App() {
   return (
@@ -110,6 +115,31 @@ function App() {
             <Route path={"/blog"}>
               <Layout>
                 <Blog />
+              </Layout>
+            </Route>
+            <Route path={"/neighborhoods/north-county"}>
+              <Layout>
+                <NorthCounty />
+              </Layout>
+            </Route>
+            <Route path={"/neighborhoods/st-charles"}>
+              <Layout>
+                <StCharles />
+              </Layout>
+            </Route>
+            <Route path={"/neighborhoods/kirkwood"}>
+              <Layout>
+                <Kirkwood />
+              </Layout>
+            </Route>
+            <Route path={"/neighborhoods/webster-groves"}>
+              <Layout>
+                <WebsterGroves />
+              </Layout>
+            </Route>
+            <Route path={"/neighborhoods/south-city"}>
+              <Layout>
+                <SouthCity />
               </Layout>
             </Route>
             <Route path={"/contact"}>
