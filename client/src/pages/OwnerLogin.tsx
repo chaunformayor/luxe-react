@@ -1,101 +1,139 @@
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getLoginUrl } from "@/const";
-import { LogIn, Home } from "lucide-react";
+import { Home, LogIn, Eye, EyeOff } from "lucide-react";
 import { Link } from "wouter";
 
 export default function OwnerLogin() {
-  const handleLogin = () => {
-    window.location.href = getLoginUrl();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Login failed");
+        return;
+      }
+
+      if (data.role !== "owner" && data.role !== "admin") {
+        setError("This account does not have owner access.");
+        await fetch("/api/auth/logout", { method: "POST" });
+        return;
+      }
+
+      window.location.href = "/owner";
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const inputCls = "w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C] transition-colors";
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--luxe-navy)] to-[var(--luxe-navy)]/80 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0A1628] to-[#0A1628]/80 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <Link href="/">
-            <h1 className="text-3xl font-bold text-[var(--luxe-gold)] mb-2 cursor-pointer hover:text-[var(--luxe-gold)]/80 transition">
+            <h1 className="text-3xl font-bold text-[#C9A84C] mb-2 cursor-pointer hover:text-[#C9A84C]/80 transition">
               Luxe Property Solutions
             </h1>
           </Link>
           <p className="text-gray-300">Property Owner Portal</p>
         </div>
 
-        {/* Login Card */}
-        <Card className="border-[var(--luxe-gold)]/20 bg-white/95 backdrop-blur">
+        <Card className="border-[#C9A84C]/20 bg-white/95 backdrop-blur">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-[var(--luxe-navy)]">
-              Owner Login
-            </CardTitle>
+            <CardTitle className="text-2xl text-[#0A1628]">Owner Login</CardTitle>
             <p className="text-sm text-gray-600 mt-2">
-              Manage your properties, tenants, and view comprehensive financial reports
+              Manage your properties, tenants, and financial reports
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-6">
-            {/* Features List */}
-            <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-[var(--luxe-navy)] text-sm">
-                Owner Portal Features:
-              </h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex items-center gap-2">
-                  <span className="text-[var(--luxe-gold)]">✓</span>
-                  Manage multiple properties
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-[var(--luxe-gold)]">✓</span>
-                  Track tenant information
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-[var(--luxe-gold)]">✓</span>
-                  View payment and invoice history
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-[var(--luxe-gold)]">✓</span>
-                  Monitor maintenance requests
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-[var(--luxe-gold)]">✓</span>
-                  Access financial reports
-                </li>
-              </ul>
-            </div>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+                  Email
+                </label>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="owner@email.com"
+                  className={inputCls}
+                />
+              </div>
 
-            {/* Login Button */}
-            <Button
-              onClick={handleLogin}
-              className="w-full bg-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/90 text-[var(--luxe-navy)] font-semibold py-6 text-lg"
-            >
-              <LogIn size={20} className="mr-2" />
-              Sign In with Manus
-            </Button>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    required
+                    type={showPw ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className={inputCls + " pr-12"}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
 
-            {/* Info Text */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>First time?</strong> Your account will be created automatically when you sign in for the first time using your email address.
-              </p>
-            </div>
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {error}
+                </div>
+              )}
 
-            {/* Back to Home */}
-            <Link href="/">
-              <Button
-                variant="outline"
-                className="w-full border-[var(--luxe-gold)] text-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/10"
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-[#C9A84C] text-[#0A1628] font-bold text-sm uppercase tracking-wide rounded-lg hover:bg-[#C9A84C]/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <Home size={18} className="mr-2" />
-                Back to Home
-              </Button>
-            </Link>
+                <LogIn size={18} />
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+            </form>
+
+            <div className="mt-4">
+              <Link href="/">
+                <button className="w-full py-3 border border-[#C9A84C] text-[#C9A84C] font-semibold text-sm rounded-lg hover:bg-[#C9A84C]/10 transition-colors flex items-center justify-center gap-2">
+                  <Home size={16} />
+                  Back to Home
+                </button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Footer */}
-        <div className="text-center mt-8 text-gray-400 text-sm">
-          <p>Need help? Contact us at support@luxepropertysolutions.com</p>
-        </div>
+        <p className="text-center mt-6 text-gray-400 text-sm">
+          Need help? Contact info@luxestl.com
+        </p>
       </div>
     </div>
   );

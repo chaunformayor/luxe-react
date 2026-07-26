@@ -11,6 +11,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "owner", "tenant"]).default("user").notNull(),
+  passwordHash: varchar("passwordHash", { length: 255 }),
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow(),

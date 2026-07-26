@@ -15,6 +15,20 @@
       "when": 1769899263625,
       "tag": "0001_deep_grim_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1785092583515,
+      "tag": "0002_wealthy_loners",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1785093468830,
+      "tag": "0003_free_scarecrow",
+      "breakpoints": true
     }
   ]
 }
