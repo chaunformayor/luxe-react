@@ -26,10 +26,13 @@ function isSecureRequest(req: ReqLike) {
 }
 
 export function getSessionCookieOptions(req: ReqLike) {
+  const secure = isSecureRequest(req);
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none" as const,
-    secure: isSecureRequest(req),
+    // "none" requires Secure=true; on HTTP (localhost) the browser drops it silently.
+    // "lax" works for same-origin API calls on both HTTP and HTTPS.
+    sameSite: (secure ? "none" : "lax") as "none" | "lax",
+    secure,
   };
 }

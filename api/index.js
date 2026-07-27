@@ -1040,11 +1040,14 @@ function isSecureRequest(req) {
   return protoList.some((proto) => proto.trim().toLowerCase() === "https");
 }
 function getSessionCookieOptions(req) {
+  const secure = isSecureRequest(req);
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req)
+    // "none" requires Secure=true; on HTTP (localhost) the browser drops it silently.
+    // "lax" works for same-origin API calls on both HTTP and HTTPS.
+    sameSite: secure ? "none" : "lax",
+    secure
   };
 }
 
