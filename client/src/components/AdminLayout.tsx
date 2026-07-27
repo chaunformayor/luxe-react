@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, LogOut, BarChart3, Building2, MessageSquare, Wrench, CreditCard, Users, FileText } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -12,11 +12,30 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setIsSidebarOpen] = useState(true);
   const [location] = useLocation();
   const logoutMutation = trpc.auth.logout.useMutation();
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading: authLoading } = trpc.auth.me.useQuery();
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      if (location.startsWith("/admin")) window.location.href = "/admin-login";
+      else if (location.startsWith("/owner")) window.location.href = "/owner-login";
+      else window.location.href = "/login";
+    }
+  }, [user, authLoading, location]);
+
+  if (authLoading) return (
+    <div className="flex h-screen items-center justify-center bg-gray-100">
+      <div className="animate-pulse text-gray-400 text-sm">Loading...</div>
+    </div>
+  );
+
+  if (!user) return null;
 
   const handleLogout = async () => {
     await logoutMutation.mutateAsync();
-    window.location.href = "/";
+    if (location.startsWith("/admin")) window.location.href = "/admin-login";
+    else if (location.startsWith("/owner")) window.location.href = "/owner-login";
+    else window.location.href = "/login";
   };
 
   const isActive = (path: string) => location === path;
