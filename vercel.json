@@ -1,7 +1,7 @@
 {
   "version": 2,
   "buildCommand": "vite build && esbuild server-entry.ts --bundle --platform=node --packages=external --format=esm --outfile=api/index.js",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "npm install",
   "outputDirectory": "dist/public",
   "env": {
     "NODE_ENV": "production"
