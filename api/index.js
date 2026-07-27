@@ -1267,24 +1267,25 @@ var systemRouter = router({
 import { z as z2 } from "zod";
 
 // server/email.ts
-var MAILEROO_ENDPOINT = "https://smtp.maileroo.com/mail/send";
+var MAILEROO_ENDPOINT = "https://smtp.maileroo.com/api/v2/emails";
 var FROM_NAME = "Luxe Property Solutions";
 function getFromEmail() {
   return process.env.MAILEROO_FROM_EMAIL || "noreply@luxestl.com";
 }
 async function callMaileroo(apiKey, opts) {
-  const params = new URLSearchParams();
-  params.append("from", `${FROM_NAME} <${getFromEmail()}>`);
-  params.append("to", `${opts.toName} <${opts.to}>`);
-  params.append("subject", opts.subject);
-  params.append("html", opts.html);
+  const payload = {
+    from: { address: getFromEmail(), display_name: FROM_NAME },
+    to: [{ address: opts.to, display_name: opts.toName }],
+    subject: opts.subject,
+    html: opts.html
+  };
   const res = await fetch(MAILEROO_ENDPOINT, {
     method: "POST",
     headers: {
-      "X-API-Key": apiKey,
-      "Content-Type": "application/x-www-form-urlencoded"
+      "X-Api-Key": apiKey,
+      "Content-Type": "application/json"
     },
-    body: params.toString()
+    body: JSON.stringify(payload)
   });
   let body;
   try {
@@ -1292,7 +1293,7 @@ async function callMaileroo(apiKey, opts) {
   } catch {
     body = await res.text().catch(() => "(unreadable)");
   }
-  return { success: res.ok && body?.success !== false, status: res.status, body };
+  return { success: res.ok, status: res.status, body };
 }
 async function sendEmail(opts) {
   const apiKey = process.env.MAILEROO_API_KEY;
