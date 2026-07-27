@@ -687,6 +687,30 @@ async function getTenantByUserId(userId) {
     throw error;
   }
 }
+async function getTenantWithDetails(userId) {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    const result = await db.select({
+      id: tenants.id,
+      userId: tenants.userId,
+      unitId: tenants.unitId,
+      leaseStartDate: tenants.leaseStartDate,
+      leaseEndDate: tenants.leaseEndDate,
+      status: tenants.status,
+      unitNumber: units.unitNumber,
+      rentAmount: units.rentAmount,
+      propertyName: properties.name,
+      propertyAddress: properties.address,
+      propertyCity: properties.city,
+      propertyState: properties.state
+    }).from(tenants).leftJoin(units, eq(tenants.unitId, units.id)).leftJoin(properties, eq(units.propertyId, properties.id)).where(eq(tenants.userId, userId)).limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("[Database] Failed to get tenant with details:", error);
+    throw error;
+  }
+}
 async function getTenantPayments(tenantId) {
   const db = await getDb();
   if (!db) return [];
@@ -1660,6 +1684,9 @@ var tenantRouter = router({
   // Tenant Info
   getTenantInfo: tenantProcedure.query(async ({ ctx }) => {
     return await getTenantByUserId(ctx.user.id);
+  }),
+  getLease: tenantProcedure.query(async ({ ctx }) => {
+    return await getTenantWithDetails(ctx.user.id);
   }),
   // Payments
   getPayments: tenantProcedure.query(async ({ ctx }) => {

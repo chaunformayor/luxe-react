@@ -2,6 +2,7 @@ import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import {
   getTenantByUserId,
+  getTenantWithDetails,
   getTenantPayments,
   getTenantInvoices,
   getTenantMaintenanceRequests,
@@ -35,6 +36,10 @@ export const tenantRouter = router({
   // Tenant Info
   getTenantInfo: tenantProcedure.query(async ({ ctx }) => {
     return await getTenantByUserId(ctx.user.id);
+  }),
+
+  getLease: tenantProcedure.query(async ({ ctx }) => {
+    return await getTenantWithDetails(ctx.user.id);
   }),
 
   // Payments

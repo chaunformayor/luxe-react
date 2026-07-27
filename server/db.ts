@@ -633,6 +633,38 @@ export async function getTenantByUserId(userId: string) {
   }
 }
 
+export async function getTenantWithDetails(userId: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db
+      .select({
+        id: tenants.id,
+        userId: tenants.userId,
+        unitId: tenants.unitId,
+        leaseStartDate: tenants.leaseStartDate,
+        leaseEndDate: tenants.leaseEndDate,
+        status: tenants.status,
+        unitNumber: units.unitNumber,
+        rentAmount: units.rentAmount,
+        propertyName: properties.name,
+        propertyAddress: properties.address,
+        propertyCity: properties.city,
+        propertyState: properties.state,
+      })
+      .from(tenants)
+      .leftJoin(units, eq(tenants.unitId, units.id))
+      .leftJoin(properties, eq(units.propertyId, properties.id))
+      .where(eq(tenants.userId, userId))
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("[Database] Failed to get tenant with details:", error);
+    throw error;
+  }
+}
+
 export async function getTenantPayments(tenantId: string) {
   const db = await getDb();
   if (!db) return [];
