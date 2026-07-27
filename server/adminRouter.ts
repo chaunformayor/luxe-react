@@ -99,6 +99,7 @@ export const adminRouter = router({
         images: z.string().optional(),
         featured: z.boolean().optional(),
         active: z.boolean().optional(),
+        ownerId: z.string().optional().nullable(),
       })
     )
     .mutation(async ({ input }) => {

@@ -1367,7 +1367,7 @@ async function sendWelcomeEmail({
 
             <!-- CTA Button -->
             <div style="text-align:center;margin:32px 0;">
-              <a href="https://luxe-react.vercel.app/tenant-login"
+              <a href="https://luxe-react.vercel.app/login"
                  style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:15px;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">
                 Sign In to Your Portal
               </a>
@@ -1455,7 +1455,8 @@ var adminRouter = router({
       amenities: z2.string().optional(),
       images: z2.string().optional(),
       featured: z2.boolean().optional(),
-      active: z2.boolean().optional()
+      active: z2.boolean().optional(),
+      ownerId: z2.string().optional().nullable()
     })
   ).mutation(async ({ input }) => {
     const { id, ...data } = input;
