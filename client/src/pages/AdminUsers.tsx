@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Shield, Home, User, UserPlus, X, Copy, Check, FlaskConical } from "lucide-react";
+import { Users, Shield, Home, User, UserPlus, X, Copy, Check, FlaskConical, Mail } from "lucide-react";
 
 const ROLES = ["admin", "owner", "tenant", "user"] as const;
 type Role = (typeof ROLES)[number];
@@ -182,12 +182,83 @@ function SeedResult({ result, onClose }: { result: any; onClose: () => void }) {
   );
 }
 
+function TestEmailModal({ onClose }: { onClose: () => void }) {
+  const [to, setTo] = React.useState("");
+  const [result, setResult] = React.useState<any>(null);
+
+  const testMutation = trpc.admin.testEmail.useMutation({
+    onSuccess: (data) => setResult(data),
+    onError: (e) => setResult({ error: e.message }),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-5 border-b">
+          <div>
+            <h2 className="text-lg font-bold text-[#0A1628]">Send Test Email</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Verify Maileroo is configured correctly</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {!result ? (
+            <>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">Send test to</label>
+                <input
+                  type="email" value={to} onChange={e => setTo(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={onClose}
+                  className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => testMutation.mutate({ to })}
+                  disabled={!to || testMutation.isPending}
+                  className="flex-1 py-2.5 bg-[#0A1628] text-white rounded-lg text-sm font-bold hover:bg-[#0A1628]/90 disabled:opacity-50">
+                  {testMutation.isPending ? "Sending..." : "Send Test"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={`rounded-lg p-4 text-sm space-y-2 ${result.error || result.responseBody?.success === false ? "bg-red-50 border border-red-200" : "bg-green-50 border border-green-200"}`}>
+                <p className={`font-bold ${result.error || result.responseBody?.success === false ? "text-red-700" : "text-green-700"}`}>
+                  {result.error || result.responseBody?.success === false ? "Failed" : "Sent successfully"}
+                </p>
+                <p className="text-gray-700"><span className="font-medium">API key set:</span> {result.apiKeySet ? "Yes" : "No — add MAILEROO_API_KEY to Vercel env vars"}</p>
+                <p className="text-gray-700"><span className="font-medium">From:</span> {result.fromEmail}</p>
+                <p className="text-gray-700"><span className="font-medium">To:</span> {result.to}</p>
+                {result.httpStatus && <p className="text-gray-700"><span className="font-medium">HTTP status:</span> {result.httpStatus}</p>}
+                {result.responseBody && (
+                  <pre className="text-xs bg-white/70 rounded p-2 overflow-x-auto mt-2">{JSON.stringify(result.responseBody, null, 2)}</pre>
+                )}
+                {result.error && <p className="text-red-600 font-mono text-xs mt-1">{result.error}</p>}
+              </div>
+              <button onClick={onClose}
+                className="w-full py-2.5 bg-[#0A1628] text-white rounded-lg text-sm font-bold hover:bg-[#0A1628]/90">
+                Close
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsers() {
   const utils = trpc.useUtils();
   const { data: users, isLoading } = trpc.admin.getAllUsers.useQuery();
   const [filterRole, setFilterRole] = useState<string>("all");
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [seedResult, setSeedResult] = useState<any>(null);
+  const [showTestEmail, setShowTestEmail] = useState(false);
 
   const seedMutation = trpc.admin.seedTestAccounts.useMutation({
     onSuccess: (data) => { setSeedResult(data); utils.admin.getAllUsers.invalidate(); },
@@ -228,11 +299,19 @@ export default function AdminUsers() {
         />
       )}
       {seedResult && <SeedResult result={seedResult} onClose={() => setSeedResult(null)} />}
+      {showTestEmail && <TestEmailModal onClose={() => setShowTestEmail(false)} />}
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
           <div className="flex gap-3">
+            <button
+              onClick={() => setShowTestEmail(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"
+              title="Send a test email to verify Maileroo is working"
+            >
+              <Mail size={16} /> Test Email
+            </button>
             <button
               onClick={() => seedMutation.mutate()}
               disabled={seedMutation.isPending}

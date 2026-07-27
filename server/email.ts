@@ -5,6 +5,37 @@ function getFromEmail() {
   return process.env.MAILEROO_FROM_EMAIL || "noreply@luxestl.com";
 }
 
+async function callMaileroo(apiKey: string, opts: {
+  to: string;
+  toName: string;
+  subject: string;
+  html: string;
+}): Promise<{ success: boolean; status: number; body: any }> {
+  const params = new URLSearchParams();
+  params.append("from", `${FROM_NAME} <${getFromEmail()}>`);
+  params.append("to", `${opts.toName} <${opts.to}>`);
+  params.append("subject", opts.subject);
+  params.append("html", opts.html);
+
+  const res = await fetch(MAILEROO_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  let body: any;
+  try {
+    body = await res.json();
+  } catch {
+    body = await res.text().catch(() => "(unreadable)");
+  }
+
+  return { success: res.ok && body?.success !== false, status: res.status, body };
+}
+
 async function sendEmail(opts: {
   to: string;
   toName: string;
@@ -17,21 +48,37 @@ async function sendEmail(opts: {
     return;
   }
 
-  const form = new FormData();
-  form.append("from", `${FROM_NAME} <${getFromEmail()}>`);
-  form.append("to", `${opts.toName} <${opts.to}>`);
-  form.append("subject", opts.subject);
-  form.append("html", opts.html);
+  const result = await callMaileroo(apiKey, opts);
+  if (!result.success) {
+    throw new Error(`Maileroo (${result.status}): ${result.body?.message || JSON.stringify(result.body)}`);
+  }
+}
 
-  const res = await fetch(MAILEROO_ENDPOINT, {
-    method: "POST",
-    headers: { "X-API-Key": apiKey },
-    body: form,
-  });
+export async function sendTestEmail(to: string): Promise<{
+  apiKeySet: boolean;
+  fromEmail: string;
+  to: string;
+  httpStatus?: number;
+  responseBody?: any;
+  error?: string;
+}> {
+  const apiKey = process.env.MAILEROO_API_KEY;
+  const fromEmail = getFromEmail();
 
-  const data = await res.json() as any;
-  if (!data.success) {
-    throw new Error(`Maileroo: ${data.message || "Unknown error"}`);
+  if (!apiKey) {
+    return { apiKeySet: false, fromEmail, to, error: "MAILEROO_API_KEY env var is not set on the server" };
+  }
+
+  try {
+    const result = await callMaileroo(apiKey, {
+      to,
+      toName: "Luxe Admin",
+      subject: "Luxe Property Solutions — Test Email",
+      html: `<p style="font-family:Arial;font-size:15px;">This is a test email from <strong>Luxe Property Solutions</strong>.<br>If you received this, Maileroo is configured correctly.</p>`,
+    });
+    return { apiKeySet: true, fromEmail, to, httpStatus: result.status, responseBody: result.body };
+  } catch (err: any) {
+    return { apiKeySet: true, fromEmail, to, error: err.message };
   }
 }
 

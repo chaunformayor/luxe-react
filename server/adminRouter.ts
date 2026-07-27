@@ -29,7 +29,7 @@ import {
   getUnitsByProperty,
 } from "./db";
 import { hashPassword } from "./authRoutes";
-import { sendOwnerWelcomeEmail } from "./email";
+import { sendOwnerWelcomeEmail, sendTestEmail } from "./email";
 
 // Admin role check middleware
 const adminProcedure = protectedProcedure.use(async (opts) => {
@@ -289,6 +289,12 @@ export const adminRouter = router({
     .mutation(async ({ input }) => {
       await deleteUnit(input);
       return { success: true };
+    }),
+
+  testEmail: adminProcedure
+    .input(z.object({ to: z.string().email() }))
+    .mutation(async ({ input }) => {
+      return await sendTestEmail(input.to);
     }),
 
   seedTestAccounts: adminProcedure.mutation(async () => {
