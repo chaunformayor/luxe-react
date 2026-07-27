@@ -9,6 +9,7 @@ import { tenantRouter } from "./tenantRouter";
 import { applicationRouter } from "./applicationRouter";
 import { createInquiry } from "./db";
 import { notifyOwner } from "./_core/notification";
+import { sendContactNotificationEmail } from "./email";
 
 export const appRouter = router({
   system: systemRouter,
@@ -51,11 +52,20 @@ export const appRouter = router({
             status: "new",
           });
 
-          // Send notification to owner
-          await notifyOwner({
+          // Send notification to owner (Manus service — no-op if not configured)
+          notifyOwner({
             title: "New Contact Form Submission",
             content: `New inquiry from ${input.name} (${input.email})\n\nMessage: ${input.message}`,
-          });
+          }).catch(() => {});
+
+          // Email notification via Maileroo
+          sendContactNotificationEmail({
+            fromName: input.name,
+            fromEmail: input.email,
+            phone: input.phone ?? undefined,
+            propertyType: input.propertyType ?? undefined,
+            message: input.message,
+          }).catch(err => console.error("[Contact] Email notification failed:", err));
 
           return {
             success: true,

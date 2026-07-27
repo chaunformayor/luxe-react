@@ -1414,6 +1414,70 @@ async function sendWelcomeEmail({
 </html>`
   });
 }
+async function sendContactNotificationEmail({
+  fromName,
+  fromEmail,
+  phone,
+  propertyType,
+  message
+}) {
+  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || "info@luxestl.com";
+  await sendEmail({
+    to: adminEmail,
+    toName: "Luxe Property Solutions",
+    subject: `New Contact Form Submission from ${fromName}`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;">
+        <tr>
+          <td style="background:#0A1628;padding:28px 40px;text-align:center;">
+            <h1 style="margin:0;color:#C9A84C;font-size:22px;font-weight:700;">New Contact Inquiry</h1>
+            <p style="margin:6px 0 0;color:#94a3b8;font-size:13px;">Luxe Property Solutions</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="padding-bottom:16px;border-bottom:1px solid #e5e7eb;">
+                  <p style="margin:0 0 4px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">From</p>
+                  <p style="margin:0;color:#0A1628;font-size:15px;font-weight:600;">${fromName}</p>
+                  <p style="margin:4px 0 0;color:#4b5563;font-size:14px;">${fromEmail}</p>
+                  ${phone ? `<p style="margin:4px 0 0;color:#4b5563;font-size:14px;">${phone}</p>` : ""}
+                  ${propertyType ? `<p style="margin:4px 0 0;color:#4b5563;font-size:13px;">Interest: ${propertyType}</p>` : ""}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-top:20px;">
+                  <p style="margin:0 0 10px;color:#9ca3af;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Message</p>
+                  <p style="margin:0;color:#1f2937;font-size:14px;line-height:1.7;white-space:pre-wrap;">${message}</p>
+                </td>
+              </tr>
+            </table>
+            <div style="margin-top:28px;padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;">
+              <a href="mailto:${fromEmail}" style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:14px;padding:12px 28px;border-radius:6px;text-decoration:none;">
+                Reply to ${fromName}
+              </a>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f9fa;padding:16px 40px;text-align:center;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;">\xA9 2026 Luxe Property Solutions \xB7 St. Louis, MO</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+  });
+}
 
 // server/adminRouter.ts
 var adminProcedure2 = protectedProcedure.use(async (opts) => {
@@ -2070,12 +2134,20 @@ var appRouter = router({
           message: input.message,
           status: "new"
         });
-        await notifyOwner({
+        notifyOwner({
           title: "New Contact Form Submission",
           content: `New inquiry from ${input.name} (${input.email})
 
 Message: ${input.message}`
+        }).catch(() => {
         });
+        sendContactNotificationEmail({
+          fromName: input.name,
+          fromEmail: input.email,
+          phone: input.phone ?? void 0,
+          propertyType: input.propertyType ?? void 0,
+          message: input.message
+        }).catch((err) => console.error("[Contact] Email notification failed:", err));
         return {
           success: true,
           inquiryId,
