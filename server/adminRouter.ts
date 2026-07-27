@@ -21,6 +21,8 @@ import {
   getUsersByRole,
   getUserByEmail,
   createUser,
+  createTenant,
+  getAllUnits,
   createUnit,
   updateUnit,
   deleteUnit,
@@ -288,6 +290,62 @@ export const adminRouter = router({
       await deleteUnit(input);
       return { success: true };
     }),
+
+  seedTestAccounts: adminProcedure.mutation(async () => {
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+    const genPw = () => Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+
+    const results: Record<string, { email: string; password: string; created: boolean }> = {};
+
+    // Test owner
+    const ownerEmail = "test.owner@luxestl.com";
+    const existingOwner = await getUserByEmail(ownerEmail);
+    if (!existingOwner) {
+      const ownerPw = genPw();
+      await createUser({
+        email: ownerEmail,
+        name: "Test Owner",
+        passwordHash: await hashPassword(ownerPw),
+        role: "owner",
+        mustChangePassword: false,
+      });
+      results.owner = { email: ownerEmail, password: ownerPw, created: true };
+    } else {
+      results.owner = { email: ownerEmail, password: "(already exists)", created: false };
+    }
+
+    // Test tenant
+    const tenantEmail = "test.tenant@luxestl.com";
+    const existingTenant = await getUserByEmail(tenantEmail);
+    if (!existingTenant) {
+      const tenantPw = genPw();
+      const userId = await createUser({
+        email: tenantEmail,
+        name: "Test Tenant",
+        passwordHash: await hashPassword(tenantPw),
+        role: "tenant",
+        mustChangePassword: false,
+      });
+
+      // Link to first available unit if any
+      const allUnits = await getAllUnits();
+      const firstUnit = allUnits[0];
+      if (firstUnit) {
+        await createTenant({
+          userId,
+          unitId: firstUnit.id,
+          leaseStartDate: new Date(),
+          leaseEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        });
+      }
+
+      results.tenant = { email: tenantEmail, password: tenantPw, created: true };
+    } else {
+      results.tenant = { email: tenantEmail, password: "(already exists)", created: false };
+    }
+
+    return results;
+  }),
 });
 
 export type AdminRouter = typeof adminRouter;

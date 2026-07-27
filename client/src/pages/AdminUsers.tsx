@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Shield, Home, User, UserPlus, X, Copy, Check } from "lucide-react";
+import { Users, Shield, Home, User, UserPlus, X, Copy, Check, FlaskConical } from "lucide-react";
 
 const ROLES = ["admin", "owner", "tenant", "user"] as const;
 type Role = (typeof ROLES)[number];
@@ -141,11 +141,58 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   );
 }
 
+function SeedResult({ result, onClose }: { result: any; onClose: () => void }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copyAll = () => {
+    const text = Object.entries(result).map(([role, info]: any) =>
+      `${role.toUpperCase()}\nEmail: ${info.email}\nPassword: ${info.password}`
+    ).join("\n\n");
+    navigator.clipboard.writeText(text);
+    setCopied("all");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="p-5 border-b flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#0A1628]">Test Accounts Ready</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          {Object.entries(result).map(([role, info]: any) => (
+            <div key={role} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#C9A84C] mb-2">{role}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium">Email:</span> {info.email}</p>
+              <p className="text-sm text-gray-700"><span className="font-medium">Password:</span> <span className="font-mono">{info.password}</span></p>
+              {!info.created && <p className="text-xs text-amber-600 mt-1">Account already existed — password unchanged</p>}
+            </div>
+          ))}
+          <button onClick={copyAll}
+            className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            {copied ? <><Check size={14} className="text-green-600" /> Copied!</> : <><Copy size={14} /> Copy All Credentials</>}
+          </button>
+          <button onClick={onClose}
+            className="w-full py-2.5 bg-[#0A1628] text-white rounded-lg text-sm font-bold hover:bg-[#0A1628]/90">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsers() {
   const utils = trpc.useUtils();
   const { data: users, isLoading } = trpc.admin.getAllUsers.useQuery();
   const [filterRole, setFilterRole] = useState<string>("all");
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [seedResult, setSeedResult] = useState<any>(null);
+
+  const seedMutation = trpc.admin.seedTestAccounts.useMutation({
+    onSuccess: (data) => { setSeedResult(data); utils.admin.getAllUsers.invalidate(); },
+    onError: (e) => alert(`Seed failed: ${e.message}`),
+  });
 
   const filteredUsers = users?.filter((user: any) =>
     filterRole === "all" ? true : user.role === filterRole
@@ -180,11 +227,20 @@ export default function AdminUsers() {
           onSuccess={() => utils.admin.getAllUsers.invalidate()}
         />
       )}
+      {seedResult && <SeedResult result={seedResult} onClose={() => setSeedResult(null)} />}
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Users Management</h1>
           <div className="flex gap-3">
+            <button
+              onClick={() => seedMutation.mutate()}
+              disabled={seedMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition disabled:opacity-50"
+              title="Create test.owner@luxestl.com and test.tenant@luxestl.com"
+            >
+              <FlaskConical size={16} /> {seedMutation.isPending ? "Seeding..." : "Seed Test Accounts"}
+            </button>
             <button
               onClick={() => setShowCreateUser(true)}
               className="flex items-center gap-2 px-4 py-2 bg-[#0A1628] text-white rounded-lg text-sm font-semibold hover:bg-[#0A1628]/90 transition"
