@@ -1,7 +1,7 @@
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import type { Express, Request, Response } from "express";
-import { getUserByEmail } from "./db";
+import { getUserByEmail, updateUser } from "./db";
 import { sdk } from "./_core/sdk";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
@@ -62,7 +62,31 @@ export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
       const user = await sdk.authenticateRequest(req);
-      res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        mustChangePassword: (user as any).mustChangePassword ?? false,
+      });
+    } catch {
+      res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+
+  app.post("/api/auth/change-password", async (req: Request, res: Response) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      const { newPassword } = req.body as { newPassword?: string };
+
+      if (!newPassword || newPassword.length < 8) {
+        res.status(400).json({ error: "Password must be at least 8 characters" });
+        return;
+      }
+
+      const passwordHash = await hashPassword(newPassword);
+      await updateUser(user.id, { passwordHash, mustChangePassword: false });
+      res.json({ ok: true });
     } catch {
       res.status(401).json({ error: "Not authenticated" });
     }

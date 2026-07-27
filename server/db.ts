@@ -386,6 +386,86 @@ export async function getUsersByRole(role: string) {
   }
 }
 
+export async function createUser(data: {
+  email: string;
+  name: string;
+  passwordHash: string;
+  role: "tenant" | "owner" | "admin" | "user";
+  mustChangePassword?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const id = `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(users).values({
+    id,
+    email: data.email,
+    name: data.name,
+    passwordHash: data.passwordHash,
+    role: data.role,
+    mustChangePassword: data.mustChangePassword ?? false,
+    loginMethod: "email",
+    createdAt: new Date(),
+    lastSignedIn: new Date(),
+  });
+  return id;
+}
+
+export async function updateUser(id: string, data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(users).set(data).where(eq(users.id, id));
+}
+
+export async function createTenant(data: {
+  userId: string;
+  unitId: string;
+  leaseStartDate: Date;
+  leaseEndDate: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const id = `ten_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(tenants).values({
+    id,
+    userId: data.userId,
+    unitId: data.unitId,
+    leaseStartDate: data.leaseStartDate,
+    leaseEndDate: data.leaseEndDate,
+    status: "active",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return id;
+}
+
+export async function getAllUnits() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select({
+      id: units.id,
+      unitNumber: units.unitNumber,
+      rentAmount: units.rentAmount,
+      status: units.status,
+      propertyId: units.propertyId,
+      propertyName: properties.name,
+      propertyAddress: properties.address,
+    })
+    .from(units)
+    .leftJoin(properties, eq(units.propertyId, properties.id));
+}
+
+export async function markUnitOccupied(unitId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(units).set({ status: "occupied", updatedAt: new Date() }).where(eq(units.id, unitId));
+}
+
 
 // ============ OWNER QUERIES ============
 

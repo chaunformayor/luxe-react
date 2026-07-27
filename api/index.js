@@ -20,6 +20,7 @@ var users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "owner", "tenant"]).default("user").notNull(),
   passwordHash: varchar("passwordHash", { length: 255 }),
+  mustChangePassword: boolean("mustChangePassword").default(false),
   stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow()
@@ -505,6 +506,62 @@ async function getUsersByRole(role) {
     throw error;
   }
 }
+async function createUser(data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const id = `usr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(users).values({
+    id,
+    email: data.email,
+    name: data.name,
+    passwordHash: data.passwordHash,
+    role: data.role,
+    mustChangePassword: data.mustChangePassword ?? false,
+    loginMethod: "email",
+    createdAt: /* @__PURE__ */ new Date(),
+    lastSignedIn: /* @__PURE__ */ new Date()
+  });
+  return id;
+}
+async function updateUser(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set(data).where(eq(users.id, id));
+}
+async function createTenant(data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const id = `ten_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(tenants).values({
+    id,
+    userId: data.userId,
+    unitId: data.unitId,
+    leaseStartDate: data.leaseStartDate,
+    leaseEndDate: data.leaseEndDate,
+    status: "active",
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  });
+  return id;
+}
+async function getAllUnits() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select({
+    id: units.id,
+    unitNumber: units.unitNumber,
+    rentAmount: units.rentAmount,
+    status: units.status,
+    propertyId: units.propertyId,
+    propertyName: properties.name,
+    propertyAddress: properties.address
+  }).from(units).leftJoin(properties, eq(units.propertyId, properties.id));
+}
+async function markUnitOccupied(unitId) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(units).set({ status: "occupied", updatedAt: /* @__PURE__ */ new Date() }).where(eq(units.id, unitId));
+}
 async function getOwnerProperties(ownerId) {
   const db = await getDb();
   if (!db) return [];
@@ -939,6 +996,11 @@ function getSessionCookieOptions(req) {
 
 // server/authRoutes.ts
 var scryptAsync = promisify(scrypt);
+async function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = await scryptAsync(password, salt, 64);
+  return `${buf.toString("hex")}.${salt}`;
+}
 async function verifyPassword(password, hash) {
   const [hashed, salt] = hash.split(".");
   if (!hashed || !salt) return false;
@@ -978,7 +1040,28 @@ function registerAuthRoutes(app2) {
   app2.get("/api/auth/me", async (req, res) => {
     try {
       const user = await sdk.authenticateRequest(req);
-      res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword ?? false
+      });
+    } catch {
+      res.status(401).json({ error: "Not authenticated" });
+    }
+  });
+  app2.post("/api/auth/change-password", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 8) {
+        res.status(400).json({ error: "Password must be at least 8 characters" });
+        return;
+      }
+      const passwordHash = await hashPassword(newPassword);
+      await updateUser(user.id, { passwordHash, mustChangePassword: false });
+      res.json({ ok: true });
     } catch {
       res.status(401).json({ error: "Not authenticated" });
     }
@@ -1400,6 +1483,100 @@ var tenantRouter = router({
 // server/applicationRouter.ts
 import Stripe from "stripe";
 import { z as z5 } from "zod";
+
+// server/email.ts
+import { Resend } from "resend";
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
+async function sendWelcomeEmail({
+  to,
+  name,
+  tempPassword,
+  unitAddress
+}) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn("[Email] RESEND_API_KEY not set \u2014 skipping welcome email");
+    return;
+  }
+  await resend.emails.send({
+    from: "Luxe Property Solutions <onboarding@resend.dev>",
+    to,
+    subject: "Welcome to Your Luxe Tenant Portal",
+    html: `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'DM Sans',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#0A1628;padding:32px 40px;text-align:center;">
+            <h1 style="margin:0;color:#C9A84C;font-size:26px;font-weight:700;letter-spacing:0.5px;">Luxe Property Solutions</h1>
+            <p style="margin:8px 0 0;color:#94a3b8;font-size:14px;">Tenant Portal Access</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:40px;">
+            <h2 style="margin:0 0 16px;color:#0A1628;font-size:22px;">Welcome, ${name}!</h2>
+            <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.6;">
+              Your rental application has been approved. Your tenant portal account is ready \u2014 log in to view your lease details, submit maintenance requests, and manage payments.
+            </p>
+
+            <!-- Unit Box -->
+            <div style="background:#f8f9fa;border-left:4px solid #C9A84C;padding:16px 20px;border-radius:0 6px 6px 0;margin-bottom:28px;">
+              <p style="margin:0;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Your Unit</p>
+              <p style="margin:6px 0 0;color:#0A1628;font-size:16px;font-weight:600;">${unitAddress}</p>
+            </div>
+
+            <!-- Credentials Box -->
+            <div style="background:#0A1628;border-radius:8px;padding:24px;margin-bottom:28px;">
+              <p style="margin:0 0 16px;color:#C9A84C;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Your Login Credentials</p>
+              <p style="margin:0 0 8px;color:#e2e8f0;font-size:14px;"><span style="color:#94a3b8;">Email:</span> ${to}</p>
+              <p style="margin:0;color:#e2e8f0;font-size:14px;"><span style="color:#94a3b8;">Temp Password:</span> <strong style="color:#C9A84C;">${tempPassword}</strong></p>
+            </div>
+
+            <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">
+              You will be prompted to create a new password on your first login.
+            </p>
+
+            <!-- CTA Button -->
+            <div style="text-align:center;margin:32px 0;">
+              <a href="https://luxe-react.vercel.app/tenant-login"
+                 style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:15px;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">
+                Sign In to Your Portal
+              </a>
+            </div>
+
+            <p style="margin:24px 0 0;color:#9ca3af;font-size:13px;text-align:center;">
+              Need help? Contact us at <a href="mailto:info@luxestl.com" style="color:#C9A84C;">info@luxestl.com</a>
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8f9fa;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;">\xA9 2026 Luxe Property Solutions \xB7 St. Louis, MO</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+  });
+}
+
+// server/applicationRouter.ts
 function getStripe() {
   if (!ENV.stripeSecretKey) return null;
   return new Stripe(ENV.stripeSecretKey, { apiVersion: "2026-06-24.dahlia" });
@@ -1560,7 +1737,7 @@ var applicationRouter = router({
     }),
     updateStatus: adminProcedure3.input(z5.object({
       id: z5.string(),
-      status: z5.enum(["under_review", "approved", "denied", "withdrawn"]),
+      status: z5.enum(["under_review", "denied", "withdrawn"]),
       reviewNotes: z5.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await updateRentalApplication(input.id, {
@@ -1570,6 +1747,58 @@ var applicationRouter = router({
         reviewedAt: /* @__PURE__ */ new Date()
       });
       return { success: true };
+    }),
+    approve: adminProcedure3.input(z5.object({
+      applicationId: z5.string(),
+      unitId: z5.string(),
+      leaseStartDate: z5.string(),
+      leaseEndDate: z5.string(),
+      reviewNotes: z5.string().optional()
+    })).mutation(async ({ input, ctx }) => {
+      const app2 = await getRentalApplicationById(input.applicationId);
+      if (!app2) throw new Error("Application not found");
+      const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+      const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      const passwordHash = await hashPassword(tempPassword);
+      const existingUser = await getUserByEmail(app2.email);
+      let userId;
+      if (existingUser) {
+        userId = existingUser.id;
+      } else {
+        userId = await createUser({
+          email: app2.email,
+          name: `${app2.firstName} ${app2.lastName}`,
+          passwordHash,
+          role: "tenant",
+          mustChangePassword: true
+        });
+      }
+      await createTenant({
+        userId,
+        unitId: input.unitId,
+        leaseStartDate: new Date(input.leaseStartDate),
+        leaseEndDate: new Date(input.leaseEndDate)
+      });
+      await markUnitOccupied(input.unitId);
+      await updateRentalApplication(input.applicationId, {
+        status: "approved",
+        reviewNotes: input.reviewNotes,
+        reviewedBy: ctx.user.id,
+        reviewedAt: /* @__PURE__ */ new Date()
+      });
+      const units2 = await getAllUnits();
+      const unit = units2.find((u) => u.id === input.unitId);
+      const unitAddress = unit ? `Unit ${unit.unitNumber} \u2014 ${unit.propertyAddress}` : "Your assigned unit";
+      sendWelcomeEmail({
+        to: app2.email,
+        name: `${app2.firstName} ${app2.lastName}`,
+        tempPassword,
+        unitAddress
+      }).catch((err) => console.error("[Email] Failed to send welcome email:", err));
+      return { success: true };
+    }),
+    getAvailableUnits: adminProcedure3.query(async () => {
+      return await getAllUnits();
     })
   })
 });

@@ -7,7 +7,14 @@ import {
   getRentalApplicationById,
   updateRentalApplication,
   getAllRentalApplications,
+  getUserByEmail,
+  createUser,
+  createTenant,
+  markUnitOccupied,
+  getAllUnits,
 } from "./db";
+import { hashPassword } from "./authRoutes";
+import { sendWelcomeEmail } from "./email";
 import { notifyOwner } from "./_core/notification";
 
 function getStripe() {
@@ -208,7 +215,7 @@ export const applicationRouter = router({
     updateStatus: adminProcedure
       .input(z.object({
         id: z.string(),
-        status: z.enum(["under_review", "approved", "denied", "withdrawn"]),
+        status: z.enum(["under_review", "denied", "withdrawn"]),
         reviewNotes: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
@@ -220,5 +227,79 @@ export const applicationRouter = router({
         });
         return { success: true };
       }),
+
+    approve: adminProcedure
+      .input(z.object({
+        applicationId: z.string(),
+        unitId: z.string(),
+        leaseStartDate: z.string(),
+        leaseEndDate: z.string(),
+        reviewNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const app = await getRentalApplicationById(input.applicationId);
+        if (!app) throw new Error("Application not found");
+
+        // Generate a random temp password
+        const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+        const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+        const passwordHash = await hashPassword(tempPassword);
+
+        // Create tenant user account (or use existing)
+        const existingUser = await getUserByEmail(app.email);
+        let userId: string;
+
+        if (existingUser) {
+          userId = existingUser.id;
+        } else {
+          userId = await createUser({
+            email: app.email,
+            name: `${app.firstName} ${app.lastName}`,
+            passwordHash,
+            role: "tenant",
+            mustChangePassword: true,
+          });
+        }
+
+        // Create tenant record
+        await createTenant({
+          userId,
+          unitId: input.unitId,
+          leaseStartDate: new Date(input.leaseStartDate),
+          leaseEndDate: new Date(input.leaseEndDate),
+        });
+
+        // Mark unit occupied
+        await markUnitOccupied(input.unitId);
+
+        // Update application status
+        await updateRentalApplication(input.applicationId, {
+          status: "approved",
+          reviewNotes: input.reviewNotes,
+          reviewedBy: ctx.user.id,
+          reviewedAt: new Date(),
+        });
+
+        // Get unit info for the email
+        const units = await getAllUnits();
+        const unit = units.find(u => u.id === input.unitId);
+        const unitAddress = unit
+          ? `Unit ${unit.unitNumber} — ${unit.propertyAddress}`
+          : "Your assigned unit";
+
+        // Send welcome email (non-blocking — don't fail approval if email fails)
+        sendWelcomeEmail({
+          to: app.email,
+          name: `${app.firstName} ${app.lastName}`,
+          tempPassword,
+          unitAddress,
+        }).catch(err => console.error("[Email] Failed to send welcome email:", err));
+
+        return { success: true };
+      }),
+
+    getAvailableUnits: adminProcedure.query(async () => {
+      return await getAllUnits();
+    }),
   }),
 });
