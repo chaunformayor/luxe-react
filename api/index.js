@@ -1240,26 +1240,24 @@ var systemRouter = router({
 import { z as z2 } from "zod";
 
 // server/email.ts
-import { Resend } from "resend";
-function getResend() {
-  if (!process.env.RESEND_API_KEY) return null;
-  return new Resend(process.env.RESEND_API_KEY);
+import { MailerooClient } from "maileroo";
+function getMaileroo() {
+  if (!process.env.MAILEROO_API_KEY) return null;
+  return MailerooClient.getClient(process.env.MAILEROO_API_KEY);
 }
+var FROM_NAME = "Luxe Property Solutions";
+var FROM_EMAIL = process.env.MAILEROO_FROM_EMAIL || "noreply@luxestl.com";
 async function sendOwnerWelcomeEmail({
   to,
   name,
   tempPassword
 }) {
-  const resend = getResend();
-  if (!resend) {
-    console.warn("[Email] RESEND_API_KEY not set \u2014 skipping owner welcome email");
+  const client = getMaileroo();
+  if (!client) {
+    console.warn("[Email] MAILEROO_API_KEY not set \u2014 skipping owner welcome email");
     return;
   }
-  await resend.emails.send({
-    from: "Luxe Property Solutions <onboarding@resend.dev>",
-    to,
-    subject: "Welcome to Your Luxe Owner Portal",
-    html: `
+  await client.setFrom(FROM_NAME, FROM_EMAIL).setTo(name, to).setSubject("Welcome to Your Luxe Owner Portal").setHtml(`
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1305,8 +1303,7 @@ async function sendOwnerWelcomeEmail({
     </td></tr>
   </table>
 </body>
-</html>`
-  });
+</html>`).send();
 }
 async function sendWelcomeEmail({
   to,
@@ -1314,16 +1311,12 @@ async function sendWelcomeEmail({
   tempPassword,
   unitAddress
 }) {
-  const resend = getResend();
-  if (!resend) {
-    console.warn("[Email] RESEND_API_KEY not set \u2014 skipping welcome email");
+  const client = getMaileroo();
+  if (!client) {
+    console.warn("[Email] MAILEROO_API_KEY not set \u2014 skipping welcome email");
     return;
   }
-  await resend.emails.send({
-    from: "Luxe Property Solutions <onboarding@resend.dev>",
-    to,
-    subject: "Welcome to Your Luxe Tenant Portal",
-    html: `
+  await client.setFrom(FROM_NAME, FROM_EMAIL).setTo(name, to).setSubject("Welcome to Your Luxe Tenant Portal").setHtml(`
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1331,67 +1324,49 @@ async function sendWelcomeEmail({
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;">
-
-        <!-- Header -->
         <tr>
           <td style="background:#0A1628;padding:32px 40px;text-align:center;">
             <h1 style="margin:0;color:#C9A84C;font-size:26px;font-weight:700;letter-spacing:0.5px;">Luxe Property Solutions</h1>
             <p style="margin:8px 0 0;color:#94a3b8;font-size:14px;">Tenant Portal Access</p>
           </td>
         </tr>
-
-        <!-- Body -->
         <tr>
           <td style="padding:40px;">
             <h2 style="margin:0 0 16px;color:#0A1628;font-size:22px;">Welcome, ${name}!</h2>
             <p style="margin:0 0 20px;color:#4b5563;font-size:15px;line-height:1.6;">
               Your rental application has been approved. Your tenant portal account is ready \u2014 log in to view your lease details, submit maintenance requests, and manage payments.
             </p>
-
-            <!-- Unit Box -->
             <div style="background:#f8f9fa;border-left:4px solid #C9A84C;padding:16px 20px;border-radius:0 6px 6px 0;margin-bottom:28px;">
               <p style="margin:0;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Your Unit</p>
               <p style="margin:6px 0 0;color:#0A1628;font-size:16px;font-weight:600;">${unitAddress}</p>
             </div>
-
-            <!-- Credentials Box -->
             <div style="background:#0A1628;border-radius:8px;padding:24px;margin-bottom:28px;">
               <p style="margin:0 0 16px;color:#C9A84C;font-size:12px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Your Login Credentials</p>
               <p style="margin:0 0 8px;color:#e2e8f0;font-size:14px;"><span style="color:#94a3b8;">Email:</span> ${to}</p>
               <p style="margin:0;color:#e2e8f0;font-size:14px;"><span style="color:#94a3b8;">Temp Password:</span> <strong style="color:#C9A84C;">${tempPassword}</strong></p>
             </div>
-
-            <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">
-              You will be prompted to create a new password on your first login.
-            </p>
-
-            <!-- CTA Button -->
+            <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">You will be prompted to create a new password on your first login.</p>
             <div style="text-align:center;margin:32px 0;">
               <a href="https://luxe-react.vercel.app/login"
                  style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:15px;padding:14px 32px;border-radius:6px;text-decoration:none;letter-spacing:0.5px;">
                 Sign In to Your Portal
               </a>
             </div>
-
             <p style="margin:24px 0 0;color:#9ca3af;font-size:13px;text-align:center;">
               Need help? Contact us at <a href="mailto:info@luxestl.com" style="color:#C9A84C;">info@luxestl.com</a>
             </p>
           </td>
         </tr>
-
-        <!-- Footer -->
         <tr>
           <td style="background:#f8f9fa;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
             <p style="margin:0;color:#9ca3af;font-size:12px;">\xA9 2026 Luxe Property Solutions \xB7 St. Louis, MO</p>
           </td>
         </tr>
-
       </table>
     </td></tr>
   </table>
 </body>
-</html>`
-  });
+</html>`).send();
 }
 
 // server/adminRouter.ts
@@ -1526,7 +1501,30 @@ var adminRouter = router({
   getUsersByRole: adminProcedure2.input(z2.enum(["admin", "owner", "tenant", "user"])).query(async ({ input }) => {
     return await getUsersByRole(input);
   }),
-  // Owners
+  // Users
+  createUserAccount: adminProcedure2.input(z2.object({
+    name: z2.string().min(1),
+    email: z2.string().email(),
+    role: z2.enum(["admin", "owner", "tenant", "user"])
+  })).mutation(async ({ input }) => {
+    const existing = await getUserByEmail(input.email.toLowerCase().trim());
+    if (existing) throw new Error("An account with this email already exists.");
+    const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+    const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    const passwordHash = await hashPassword(tempPassword);
+    const id = await createUser({
+      email: input.email.toLowerCase().trim(),
+      name: input.name,
+      passwordHash,
+      role: input.role,
+      mustChangePassword: true
+    });
+    if (input.role === "owner") {
+      sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword }).catch((err) => console.error("[Email] Failed to send owner welcome email:", err));
+    }
+    return { id, tempPassword, success: true };
+  }),
+  // Owners (kept for backwards compat)
   createOwner: adminProcedure2.input(z2.object({ name: z2.string().min(1), email: z2.string().email() })).mutation(async ({ input }) => {
     const existing = await getUserByEmail(input.email.toLowerCase().trim());
     if (existing) throw new Error("An account with this email already exists.");

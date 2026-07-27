@@ -194,7 +194,38 @@ export const adminRouter = router({
       return await getUsersByRole(input);
     }),
 
-  // Owners
+  // Users
+  createUserAccount: adminProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      role: z.enum(["admin", "owner", "tenant", "user"]),
+    }))
+    .mutation(async ({ input }) => {
+      const existing = await getUserByEmail(input.email.toLowerCase().trim());
+      if (existing) throw new Error("An account with this email already exists.");
+
+      const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+      const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      const passwordHash = await hashPassword(tempPassword);
+
+      const id = await createUser({
+        email: input.email.toLowerCase().trim(),
+        name: input.name,
+        passwordHash,
+        role: input.role,
+        mustChangePassword: true,
+      });
+
+      if (input.role === "owner") {
+        sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword })
+          .catch(err => console.error("[Email] Failed to send owner welcome email:", err));
+      }
+
+      return { id, tempPassword, success: true };
+    }),
+
+  // Owners (kept for backwards compat)
   createOwner: adminProcedure
     .input(z.object({ name: z.string().min(1), email: z.string().email() }))
     .mutation(async ({ input }) => {
