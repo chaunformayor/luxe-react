@@ -466,6 +466,49 @@ export async function markUnitOccupied(unitId: string) {
   await db.update(units).set({ status: "occupied", updatedAt: new Date() }).where(eq(units.id, unitId));
 }
 
+export async function createUnit(data: {
+  propertyId: string;
+  unitNumber: string;
+  rentAmount: string;
+  status?: "vacant" | "occupied" | "maintenance";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const id = `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(units).values({
+    id,
+    propertyId: data.propertyId,
+    unitNumber: data.unitNumber,
+    rentAmount: data.rentAmount,
+    status: data.status ?? "vacant",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return id;
+}
+
+export async function updateUnit(id: string, data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(units).set({ ...data, updatedAt: new Date() }).where(eq(units.id, id));
+}
+
+export async function deleteUnit(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(units).where(eq(units.id, id));
+}
+
+export async function getUnitsByProperty(propertyId: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(units).where(eq(units.propertyId, propertyId));
+}
+
 
 // ============ OWNER QUERIES ============
 

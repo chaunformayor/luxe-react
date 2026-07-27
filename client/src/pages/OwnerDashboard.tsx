@@ -1,15 +1,90 @@
-import React from "react";
+import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Users, DollarSign, AlertCircle } from "lucide-react";
+import { Building2, Users, DollarSign, AlertCircle, KeyRound, Eye, EyeOff } from "lucide-react";
+
+function ForceChangePassword() {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const inputCls = "w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C] transition-colors";
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (newPassword.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (newPassword !== confirm) { setError("Passwords do not match."); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      });
+      if (!res.ok) { const d = await res.json(); setError(d.error || "Failed."); return; }
+      window.location.reload();
+    } catch { setError("Network error. Please try again."); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <AdminLayout>
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#0A1628] mb-4">
+              <KeyRound className="text-[#C9A84C]" size={28} />
+            </div>
+            <h1 className="text-2xl font-bold text-[#0A1628]">Create Your Password</h1>
+            <p className="text-gray-500 mt-2 text-sm">Set a new password to access your owner portal.</p>
+          </div>
+          <Card className="border-[#C9A84C]/20">
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">New Password</label>
+                  <div className="relative">
+                    <input required type={showPw ? "text" : "password"} value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)} placeholder="Min 8 characters"
+                      className={inputCls + " pr-12"} />
+                    <button type="button" onClick={() => setShowPw(p => !p)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Confirm Password</label>
+                  <input required type={showPw ? "text" : "password"} value={confirm}
+                    onChange={e => setConfirm(e.target.value)} placeholder="Re-enter password" className={inputCls} />
+                </div>
+                {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+                <button type="submit" disabled={loading}
+                  className="w-full py-3 bg-[#C9A84C] text-[#0A1628] font-bold text-sm uppercase tracking-wide rounded-lg hover:bg-[#C9A84C]/90 disabled:opacity-50">
+                  {loading ? "Saving..." : "Set Password & Continue"}
+                </button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+}
 
 export default function OwnerDashboard() {
   const { data: stats, isLoading } = trpc.owner.getStats.useQuery();
-  const { data: user } = trpc.auth.me.useQuery();
+  const { data: user, isLoading: userLoading } = trpc.auth.me.useQuery();
 
-  // Check if user is owner or admin
+  if (userLoading) {
+    return <AdminLayout><div className="flex items-center justify-center h-64"><Skeleton className="h-8 w-48" /></div></AdminLayout>;
+  }
+
   if (user && user.role !== "owner" && user.role !== "admin") {
     return (
       <AdminLayout>
@@ -23,6 +98,8 @@ export default function OwnerDashboard() {
       </AdminLayout>
     );
   }
+
+  if ((user as any)?.mustChangePassword) return <ForceChangePassword />;
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <Card className="hover:shadow-lg transition">

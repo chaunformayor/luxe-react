@@ -19,7 +19,15 @@ import {
   getTenantById,
   getAllUsers,
   getUsersByRole,
+  getUserByEmail,
+  createUser,
+  createUnit,
+  updateUnit,
+  deleteUnit,
+  getUnitsByProperty,
 } from "./db";
+import { hashPassword } from "./authRoutes";
+import { sendOwnerWelcomeEmail } from "./email";
 
 // Admin role check middleware
 const adminProcedure = protectedProcedure.use(async (opts) => {
@@ -183,6 +191,70 @@ export const adminRouter = router({
     .input(z.enum(["admin", "owner", "tenant", "user"]))
     .query(async ({ input }) => {
       return await getUsersByRole(input);
+    }),
+
+  // Owners
+  createOwner: adminProcedure
+    .input(z.object({ name: z.string().min(1), email: z.string().email() }))
+    .mutation(async ({ input }) => {
+      const existing = await getUserByEmail(input.email.toLowerCase().trim());
+      if (existing) throw new Error("An account with this email already exists.");
+
+      const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+      const tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      const passwordHash = await hashPassword(tempPassword);
+
+      const id = await createUser({
+        email: input.email.toLowerCase().trim(),
+        name: input.name,
+        passwordHash,
+        role: "owner",
+        mustChangePassword: true,
+      });
+
+      sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword })
+        .catch(err => console.error("[Email] Failed to send owner welcome email:", err));
+
+      return { id, success: true };
+    }),
+
+  // Units
+  getUnitsForProperty: adminProcedure
+    .input(z.string())
+    .query(async ({ input }) => {
+      return await getUnitsByProperty(input);
+    }),
+
+  createUnit: adminProcedure
+    .input(z.object({
+      propertyId: z.string(),
+      unitNumber: z.string().min(1),
+      rentAmount: z.string().min(1),
+      status: z.enum(["vacant", "occupied", "maintenance"]).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const id = await createUnit(input);
+      return { id, success: true };
+    }),
+
+  updateUnit: adminProcedure
+    .input(z.object({
+      id: z.string(),
+      unitNumber: z.string().optional(),
+      rentAmount: z.string().optional(),
+      status: z.enum(["vacant", "occupied", "maintenance"]).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      await updateUnit(id, data);
+      return { success: true };
+    }),
+
+  deleteUnit: adminProcedure
+    .input(z.string())
+    .mutation(async ({ input }) => {
+      await deleteUnit(input);
+      return { success: true };
     }),
 });
 
