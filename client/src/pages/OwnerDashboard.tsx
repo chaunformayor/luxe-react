@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import OwnerLayout from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Users, DollarSign, AlertCircle, KeyRound, Eye, EyeOff } from "lucide-react";
@@ -33,7 +33,7 @@ function ForceChangePassword() {
   };
 
   return (
-    <AdminLayout>
+    <OwnerLayout>
       <div className="flex items-center justify-center min-h-[70vh]">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
@@ -73,7 +73,7 @@ function ForceChangePassword() {
           </Card>
         </div>
       </div>
-    </AdminLayout>
+    </OwnerLayout>
   );
 }
 
@@ -82,12 +82,12 @@ export default function OwnerDashboard() {
   const { data: user, isLoading: userLoading } = trpc.auth.me.useQuery();
 
   if (userLoading) {
-    return <AdminLayout><div className="flex items-center justify-center h-64"><Skeleton className="h-8 w-48" /></div></AdminLayout>;
+    return <OwnerLayout><div className="flex items-center justify-center h-64"><Skeleton className="h-8 w-48" /></div></OwnerLayout>;
   }
 
   if (user && user.role !== "owner" && user.role !== "admin") {
     return (
-      <AdminLayout>
+      <OwnerLayout>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <AlertCircle className="mx-auto mb-4 text-red-500" size={48} />
@@ -95,7 +95,7 @@ export default function OwnerDashboard() {
             <p className="text-gray-600">You do not have permission to access the owner portal.</p>
           </div>
         </div>
-      </AdminLayout>
+      </OwnerLayout>
     );
   }
 
@@ -118,7 +118,7 @@ export default function OwnerDashboard() {
   );
 
   return (
-    <AdminLayout>
+    <OwnerLayout>
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-lg">
@@ -245,6 +245,6 @@ export default function OwnerDashboard() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </OwnerLayout>
   );
 }

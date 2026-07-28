@@ -16,12 +16,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
-      if (location.startsWith("/admin")) window.location.href = "/admin-login";
-      else if (location.startsWith("/owner")) window.location.href = "/owner-login";
-      else window.location.href = "/login";
+    if (!user || user.role !== "admin") {
+      window.location.href = "/admin-login";
     }
-  }, [user, authLoading, location]);
+  }, [user, authLoading]);
 
   if (authLoading) return (
     <div className="flex h-screen items-center justify-center bg-gray-100">
@@ -29,13 +27,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 
-  if (!user) return null;
+  if (!user || user.role !== "admin") return null;
 
   const handleLogout = async () => {
-    await logoutMutation.mutateAsync();
-    if (location.startsWith("/admin")) window.location.href = "/admin-login";
-    else if (location.startsWith("/owner")) window.location.href = "/owner-login";
-    else window.location.href = "/login";
+    await logoutMutation.mutateAsync().catch(() => {});
+    window.location.href = "/admin-login";
   };
 
   const isActive = (path: string) => location === path;

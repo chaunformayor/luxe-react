@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import TenantLayout from "@/components/TenantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, CreditCard, Wrench, AlertCircle, KeyRound, Eye, EyeOff, Home, Calendar, DollarSign, Clock } from "lucide-react";
@@ -33,7 +33,7 @@ function ForceChangePassword() {
   };
 
   return (
-    <AdminLayout>
+    <TenantLayout>
       <div className="flex items-center justify-center min-h-[70vh]">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
@@ -73,7 +73,7 @@ function ForceChangePassword() {
           </Card>
         </div>
       </div>
-    </AdminLayout>
+    </TenantLayout>
   );
 }
 
@@ -102,7 +102,7 @@ function LeaseCard({ lease }: { lease: any }) {
             <div className="bg-[#0A1628]/5 rounded-lg p-3">
               <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Unit</p>
               <p className="font-semibold text-[#0A1628]">
-                {lease.unitNumber ? `Unit ${lease.unitNumber}` : "—"}
+                {lease.unitNumber ? `Unit ${lease.unitNumber}` : "â€”"}
               </p>
               {lease.propertyAddress && (
                 <p className="text-sm text-gray-600 mt-0.5">
@@ -114,7 +114,7 @@ function LeaseCard({ lease }: { lease: any }) {
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Monthly Rent</p>
                 <p className="font-semibold text-[#0A1628]">
-                  {lease.rentAmount ? `$${parseFloat(lease.rentAmount).toLocaleString()}` : "—"}
+                  {lease.rentAmount ? `$${parseFloat(lease.rentAmount).toLocaleString()}` : "â€”"}
                 </p>
               </div>
               <div>
@@ -122,19 +122,19 @@ function LeaseCard({ lease }: { lease: any }) {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                   lease.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
                 }`}>
-                  {lease.status ? lease.status.charAt(0).toUpperCase() + lease.status.slice(1) : "—"}
+                  {lease.status ? lease.status.charAt(0).toUpperCase() + lease.status.slice(1) : "â€”"}
                 </span>
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Lease Start</p>
                 <p className="text-sm text-gray-700">
-                  {lease.leaseStartDate ? new Date(lease.leaseStartDate).toLocaleDateString() : "—"}
+                  {lease.leaseStartDate ? new Date(lease.leaseStartDate).toLocaleDateString() : "â€”"}
                 </p>
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Lease End</p>
                 <p className="text-sm text-gray-700">
-                  {lease.leaseEndDate ? new Date(lease.leaseEndDate).toLocaleDateString() : "—"}
+                  {lease.leaseEndDate ? new Date(lease.leaseEndDate).toLocaleDateString() : "â€”"}
                 </p>
               </div>
             </div>
@@ -143,7 +143,7 @@ function LeaseCard({ lease }: { lease: any }) {
                 <Clock size={14} />
                 {daysUntilExpiry > 0
                   ? `${daysUntilExpiry} days until lease expires`
-                  : "Lease has expired — contact your property manager"}
+                  : "Lease has expired â€” contact your property manager"}
               </div>
             )}
           </div>
@@ -159,12 +159,12 @@ export default function TenantDashboard() {
   const { data: user, isLoading: userLoading } = trpc.auth.me.useQuery();
 
   if (userLoading) {
-    return <AdminLayout><div className="flex items-center justify-center h-64"><Skeleton className="h-8 w-48" /></div></AdminLayout>;
+    return <TenantLayout><div className="flex items-center justify-center h-64"><Skeleton className="h-8 w-48" /></div></TenantLayout>;
   }
 
   if (user && user.role !== "tenant" && user.role !== "admin") {
     return (
-      <AdminLayout>
+      <TenantLayout>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <AlertCircle className="mx-auto mb-4 text-red-500" size={48} />
@@ -172,7 +172,7 @@ export default function TenantDashboard() {
             <p className="text-gray-600">You do not have permission to access the tenant portal.</p>
           </div>
         </div>
-      </AdminLayout>
+      </TenantLayout>
     );
   }
 
@@ -195,7 +195,7 @@ export default function TenantDashboard() {
   );
 
   return (
-    <AdminLayout>
+    <TenantLayout>
       <div className="space-y-6">
         {/* Hero */}
         <div className="bg-gradient-to-r from-[#0A1628] to-[#0A1628]/80 text-white p-6 rounded-lg">
@@ -204,7 +204,7 @@ export default function TenantDashboard() {
               <h1 className="text-3xl font-bold mb-1">Welcome, {user?.name || "Tenant"}!</h1>
               <p className="text-[#C9A84C]/80 text-sm">
                 {lease?.propertyName
-                  ? `${lease.propertyName}${lease.unitNumber ? ` · Unit ${lease.unitNumber}` : ""}`
+                  ? `${lease.propertyName}${lease.unitNumber ? ` Â· Unit ${lease.unitNumber}` : ""}`
                   : "Tenant Portal"}
               </p>
             </div>
@@ -248,7 +248,7 @@ export default function TenantDashboard() {
                 </div>
                 <a href="/tenant/maintenance"
                   className="px-4 py-2 bg-[#0A1628] text-white text-sm font-semibold rounded-lg hover:bg-[#0A1628]/90 transition whitespace-nowrap">
-                  Go →
+                  Go â†’
                 </a>
               </CardContent>
             </Card>
@@ -266,7 +266,7 @@ export default function TenantDashboard() {
                 </div>
                 <a href="/tenant/payments"
                   className="px-4 py-2 bg-[#0A1628] text-white text-sm font-semibold rounded-lg hover:bg-[#0A1628]/90 transition whitespace-nowrap">
-                  Go →
+                  Go â†’
                 </a>
               </CardContent>
             </Card>
@@ -284,13 +284,13 @@ export default function TenantDashboard() {
                 </div>
                 <a href="/tenant/documents"
                   className="px-4 py-2 bg-[#0A1628] text-white text-sm font-semibold rounded-lg hover:bg-[#0A1628]/90 transition whitespace-nowrap">
-                  Go →
+                  Go â†’
                 </a>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </TenantLayout>
   );
 }

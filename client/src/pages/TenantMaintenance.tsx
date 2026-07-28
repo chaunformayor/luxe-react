@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import TenantLayout from "@/components/TenantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Wrench, Plus, X } from "lucide-react";
@@ -62,10 +62,10 @@ function NewRequestModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             <select value={formData.priority}
               onChange={e => setFormData({ ...formData, priority: e.target.value as any })}
               className={inputCls}>
-              <option value="low">Low — Minor issue, no urgency</option>
-              <option value="medium">Medium — Needs attention soon</option>
-              <option value="high">High — Affecting daily life</option>
-              <option value="urgent">Urgent — Safety or major damage</option>
+              <option value="low">Low â€” Minor issue, no urgency</option>
+              <option value="medium">Medium â€” Needs attention soon</option>
+              <option value="high">High â€” Affecting daily life</option>
+              <option value="urgent">Urgent â€” Safety or major damage</option>
             </select>
           </div>
           {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
@@ -91,7 +91,7 @@ export default function TenantMaintenance() {
   const [showForm, setShowForm] = useState(false);
 
   return (
-    <AdminLayout>
+    <TenantLayout>
       {showForm && (
         <NewRequestModal
           onClose={() => setShowForm(false)}
@@ -154,6 +154,6 @@ export default function TenantMaintenance() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </TenantLayout>
   );
 }

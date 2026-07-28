@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import OwnerLayout from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,7 +22,7 @@ export default function OwnerProperties() {
   };
 
   return (
-    <AdminLayout>
+    <OwnerLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -112,6 +112,6 @@ export default function OwnerProperties() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </OwnerLayout>
   );
 }

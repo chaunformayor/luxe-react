@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import TenantLayout from "@/components/TenantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreditCard, FileText, DollarSign } from "lucide-react";
@@ -32,7 +32,7 @@ export default function TenantPayments() {
   const overdueInvoices = invoices?.filter((i: any) => i.status === "overdue").length ?? 0;
 
   return (
-    <AdminLayout>
+    <TenantLayout>
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-[#0A1628]">Payments & Invoices</h1>
 
@@ -45,7 +45,7 @@ export default function TenantPayments() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-[#0A1628]">
-                {lease?.rentAmount ? `$${parseFloat(lease.rentAmount).toLocaleString()}` : "—"}
+                {lease?.rentAmount ? `$${parseFloat(lease.rentAmount).toLocaleString()}` : "â€”"}
               </div>
             </CardContent>
           </Card>
@@ -116,13 +116,13 @@ export default function TenantPayments() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-600">
-                            {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}
+                            {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "â€”"}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-600">
-                            {inv.paidDate ? new Date(inv.paidDate).toLocaleDateString() : "—"}
+                            {inv.paidDate ? new Date(inv.paidDate).toLocaleDateString() : "â€”"}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-500 max-w-xs truncate">
-                            {inv.description || "—"}
+                            {inv.description || "â€”"}
                           </td>
                         </tr>
                       ))}
@@ -168,7 +168,7 @@ export default function TenantPayments() {
                             ${parseFloat(pmt.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-600 capitalize">
-                            {pmt.paymentMethod?.replace("_", " ") || "—"}
+                            {pmt.paymentMethod?.replace("_", " ") || "â€”"}
                           </td>
                           <td className="py-3 px-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentStatusColors[pmt.status] || paymentStatusColors.pending}`}>
@@ -181,7 +181,7 @@ export default function TenantPayments() {
                               : new Date(pmt.createdAt).toLocaleDateString()}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-500 max-w-xs truncate">
-                            {pmt.description || "—"}
+                            {pmt.description || "â€”"}
                           </td>
                         </tr>
                       ))}
@@ -201,6 +201,6 @@ export default function TenantPayments() {
           </Card>
         )}
       </div>
-    </AdminLayout>
+    </TenantLayout>
   );
 }

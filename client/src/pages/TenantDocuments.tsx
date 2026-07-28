@@ -1,6 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import TenantLayout from "@/components/TenantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Download } from "lucide-react";
@@ -9,15 +9,15 @@ export default function TenantDocuments() {
   const { data: documents, isLoading } = trpc.tenant.getDocuments.useQuery();
 
   const documentTypeIcons: Record<string, string> = {
-    lease: "📋",
-    invoice: "📄",
-    payment_receipt: "💳",
-    maintenance: "🔧",
-    other: "📎",
+    lease: "ðŸ“‹",
+    invoice: "ðŸ“„",
+    payment_receipt: "ðŸ’³",
+    maintenance: "ðŸ”§",
+    other: "ðŸ“Ž",
   };
 
   return (
-    <AdminLayout>
+    <TenantLayout>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -103,6 +103,6 @@ export default function TenantDocuments() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </TenantLayout>
   );
 }

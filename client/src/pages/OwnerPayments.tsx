@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import AdminLayout from "@/components/AdminLayout";
+import OwnerLayout from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreditCard, FileText, TrendingUp } from "lucide-react";
@@ -31,7 +31,7 @@ export default function OwnerPayments() {
   };
 
   return (
-    <AdminLayout>
+    <OwnerLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -218,6 +218,6 @@ export default function OwnerPayments() {
           </Card>
         )}
       </div>
-    </AdminLayout>
+    </OwnerLayout>
   );
 }
