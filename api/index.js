@@ -3,6 +3,8 @@ import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import multer from "multer";
+import { put } from "@vercel/blob";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
 // server/authRoutes.ts
@@ -593,6 +595,38 @@ async function getUnitsByProperty(propertyId) {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(units).where(eq(units.propertyId, propertyId));
+}
+async function updateTenant(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(tenants).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tenants.id, id));
+}
+async function createInvoice(data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const id = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(invoices).values({
+    id,
+    tenantId: data.tenantId,
+    unitId: data.unitId,
+    amount: data.amount,
+    dueDate: data.dueDate,
+    description: data.description ?? null,
+    status: data.status ?? "sent",
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  });
+  return id;
+}
+async function getAllInvoices() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(invoices);
+}
+async function updatePayment(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(payments).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(payments.id, id));
 }
 async function getOwnerProperties(ownerId) {
   const db = await getDb();
@@ -1711,6 +1745,89 @@ var adminRouter = router({
     await deleteUnit(input);
     return { success: true };
   }),
+  // Update user details (name, email, role, reset password)
+  updateUser: adminProcedure2.input(z2.object({
+    id: z2.string(),
+    name: z2.string().min(1).optional(),
+    email: z2.string().email().optional(),
+    role: z2.enum(["admin", "owner", "tenant", "user"]).optional(),
+    resetPassword: z2.boolean().optional()
+  })).mutation(async ({ input }) => {
+    const { id, resetPassword, ...fields } = input;
+    const updateData = {};
+    if (fields.name !== void 0) updateData.name = fields.name;
+    if (fields.email !== void 0) updateData.email = fields.email.toLowerCase().trim();
+    if (fields.role !== void 0) updateData.role = fields.role;
+    let tempPassword;
+    if (resetPassword) {
+      const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$";
+      tempPassword = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      updateData.passwordHash = await hashPassword(tempPassword);
+      updateData.mustChangePassword = true;
+    }
+    await updateUser(id, updateData);
+    return { success: true, tempPassword };
+  }),
+  // Get all units (for tenant assignment)
+  getAllUnitsAdmin: adminProcedure2.query(async () => {
+    return await getAllUnits();
+  }),
+  // Link a user to a unit as a tenant
+  createTenantRecord: adminProcedure2.input(z2.object({
+    userId: z2.string(),
+    unitId: z2.string(),
+    leaseStartDate: z2.string(),
+    leaseEndDate: z2.string()
+  })).mutation(async ({ input }) => {
+    const id = await createTenant({
+      userId: input.userId,
+      unitId: input.unitId,
+      leaseStartDate: new Date(input.leaseStartDate),
+      leaseEndDate: new Date(input.leaseEndDate)
+    });
+    await markUnitOccupied(input.unitId);
+    await updateUser(input.userId, { role: "tenant" });
+    return { id, success: true };
+  }),
+  // Update a tenant record (lease dates, status)
+  updateTenantRecord: adminProcedure2.input(z2.object({
+    id: z2.string(),
+    leaseStartDate: z2.string().optional(),
+    leaseEndDate: z2.string().optional(),
+    status: z2.enum(["active", "inactive", "evicted"]).optional()
+  })).mutation(async ({ input }) => {
+    const { id, leaseStartDate, leaseEndDate, ...rest } = input;
+    const data = { ...rest };
+    if (leaseStartDate) data.leaseStartDate = new Date(leaseStartDate);
+    if (leaseEndDate) data.leaseEndDate = new Date(leaseEndDate);
+    await updateTenant(id, data);
+    return { success: true };
+  }),
+  // Invoices
+  getAllInvoices: adminProcedure2.query(async () => {
+    return await getAllInvoices();
+  }),
+  createInvoice: adminProcedure2.input(z2.object({
+    tenantId: z2.string(),
+    unitId: z2.string(),
+    amount: z2.string(),
+    dueDate: z2.string(),
+    description: z2.string().optional()
+  })).mutation(async ({ input }) => {
+    const id = await createInvoice({
+      tenantId: input.tenantId,
+      unitId: input.unitId,
+      amount: input.amount,
+      dueDate: new Date(input.dueDate),
+      description: input.description
+    });
+    return { id, success: true };
+  }),
+  // Mark payment as received
+  markPaymentReceived: adminProcedure2.input(z2.string()).mutation(async ({ input }) => {
+    await updatePayment(input, { status: "completed" });
+    return { success: true };
+  }),
   testEmail: adminProcedure2.input(z2.object({ to: z2.string().email() })).mutation(async ({ input }) => {
     return await sendTestEmail(input.to);
   }),
@@ -2236,6 +2353,38 @@ app.use("/api/auth/login", rateLimit({
 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
+var upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"));
+  }
+});
+app.post("/api/upload", upload.single("file"), async (req, res) => {
+  try {
+    const user = await sdk.authenticateRequest(req).catch(() => null);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
+      return res.status(500).json({ error: "BLOB_READ_WRITE_TOKEN not configured on server" });
+    }
+    const ext = req.file.originalname.split(".").pop() ?? "jpg";
+    const filename = `properties/${Date.now()}-${Math.random().toString(36).substr(2, 6)}.${ext}`;
+    const blob = await put(filename, req.file.buffer, {
+      access: "public",
+      contentType: req.file.mimetype,
+      token
+    });
+    res.json({ url: blob.url });
+  } catch (err) {
+    console.error("[Upload]", err);
+    res.status(500).json({ error: err.message ?? "Upload failed" });
+  }
+});
 registerAuthRoutes(app);
 app.use(
   "/api/trpc",

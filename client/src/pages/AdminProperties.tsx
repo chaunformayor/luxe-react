@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Plus, Edit2, Trash2, ChevronDown, ChevronUp, X, Building2, Star
+  Plus, Edit2, Trash2, ChevronDown, ChevronUp, X, Building2, Star,
+  ImagePlus, Loader2,
 } from "lucide-react";
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]";
@@ -38,10 +39,45 @@ function PropertyModal({
     featured: initial?.featured ?? false,
     active: initial?.active ?? true,
   });
+
+  // Photo management
+  const [images, setImages] = useState<string[]>(() => {
+    try { return JSON.parse(initial?.images ?? "[]") as string[]; } catch { return []; }
+  });
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set = (key: string, val: any) => setForm(f => ({ ...f, [key]: val }));
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "Upload failed");
+        urls.push(json.url);
+      }
+      setImages(prev => [...prev, ...urls]);
+    } catch (err: any) {
+      setUploadError(err.message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeImage = (url: string) => setImages(prev => prev.filter(u => u !== url));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +90,7 @@ function PropertyModal({
         baths: Number(form.baths),
         sqft: Number(form.sqft),
         ownerId: form.ownerId || undefined,
+        images: JSON.stringify(images),
       });
       onClose();
     } catch (err: any) {
@@ -140,6 +177,33 @@ function PropertyModal({
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">Description</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="Property description..." className={inputCls} />
+          </div>
+
+          {/* Photos */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">Property Photos</label>
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+            {images.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {images.map((url) => (
+                  <div key={url} className="relative group aspect-video rounded-lg overflow-hidden border border-gray-200">
+                    <img src={url} alt="property" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeImage(url)}
+                      className="absolute top-1 right-1 p-1 bg-black/60 text-white rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-red-600">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-[#C9A84C] hover:text-[#C9A84C] transition w-full justify-center disabled:opacity-50">
+              {uploading ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><ImagePlus size={16} /> Add Photos</>}
+            </button>
+            {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+            {!process.env.BLOB_READ_WRITE_TOKEN && images.length === 0 && (
+              <p className="text-xs text-amber-600 mt-1">Add <strong>BLOB_READ_WRITE_TOKEN</strong> to Vercel env vars to enable photo uploads.</p>
+            )}
           </div>
 
           <div className="flex gap-6">
@@ -340,6 +404,21 @@ function PropertyRow({ property, owners, onEdit, onDelete, onToggleFeatured }: {
             <span>{property.baths} bath</span>
             <span>{Number(property.sqft).toLocaleString()} sqft</span>
           </div>
+          {(() => {
+            try {
+              const imgs: string[] = JSON.parse(property.images ?? "[]");
+              if (imgs.length > 0) return (
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {imgs.map(url => (
+                    <div key={url} className="aspect-video rounded-lg overflow-hidden border border-gray-200">
+                      <img src={url} alt="property" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              );
+            } catch {}
+            return null;
+          })()}
           <UnitsManager propertyId={property.id} />
         </div>
       )}

@@ -509,6 +509,61 @@ export async function getUnitsByProperty(propertyId: string) {
   return await db.select().from(units).where(eq(units.propertyId, propertyId));
 }
 
+export async function updateTenant(id: string, data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(tenants).set({ ...data, updatedAt: new Date() }).where(eq(tenants.id, id));
+}
+
+export async function getTenantByUnitId(unitId: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(tenants).where(eq(tenants.unitId, unitId)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createInvoice(data: {
+  tenantId: string;
+  unitId: string;
+  amount: string;
+  dueDate: Date;
+  description?: string;
+  status?: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const id = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(invoices).values({
+    id,
+    tenantId: data.tenantId,
+    unitId: data.unitId,
+    amount: data.amount,
+    dueDate: data.dueDate,
+    description: data.description ?? null,
+    status: data.status ?? "sent",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return id;
+}
+
+export async function getAllInvoices() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db.select().from(invoices);
+}
+
+export async function updatePayment(id: string, data: Record<string, unknown>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(payments).set({ ...data, updatedAt: new Date() }).where(eq(payments.id, id));
+}
+
 
 // ============ OWNER QUERIES ============
 
