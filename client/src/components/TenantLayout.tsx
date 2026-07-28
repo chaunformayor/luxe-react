@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, LogOut, LayoutDashboard, CreditCard, Wrench, FileText } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, CreditCard, Wrench, FileText, Settings } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 const menuItems = [
@@ -8,6 +8,7 @@ const menuItems = [
   { path: "/tenant/payments", label: "Payments & Invoices", icon: CreditCard },
   { path: "/tenant/maintenance", label: "Maintenance", icon: Wrench },
   { path: "/tenant/documents", label: "Documents", icon: FileText },
+  { path: "/tenant/settings", label: "Account Settings", icon: Settings },
 ];
 
 export default function TenantLayout({ children }: { children: React.ReactNode }) {

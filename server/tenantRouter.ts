@@ -9,7 +9,10 @@ import {
   createMaintenanceRequest,
   getTenantDocuments,
   getTenantStats,
+  getUnitById,
+  updateUser,
 } from "./db";
+import { hashPassword, verifyPassword } from "./authRoutes";
 
 // Tenant role check middleware
 const tenantProcedure = protectedProcedure.use(async (opts) => {
@@ -73,12 +76,15 @@ export const tenantRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const tenant = await getTenantByUserId(ctx.user.id);
-      if (!tenant) {
-        throw new Error("Tenant profile not found");
-      }
+      if (!tenant) throw new Error("Tenant profile not found");
+      if (!tenant.unitId) throw new Error("No unit assigned to your account. Contact your property manager.");
+
+      // Look up the unit to get its propertyId
+      const unit = await getUnitById(tenant.unitId);
+      if (!unit?.propertyId) throw new Error("Unit has no property — contact your property manager.");
 
       const id = await createMaintenanceRequest({
-        propertyId: tenant.unitId, // Using unitId as propertyId for now
+        propertyId: unit.propertyId,
         tenantId: tenant.id,
         unitId: tenant.unitId,
         title: input.title,
@@ -88,6 +94,29 @@ export const tenantRouter = router({
       });
 
       return { id };
+    }),
+
+  // Account: update name
+  updateProfile: tenantProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      await updateUser(ctx.user.id, { name: input.name });
+      return { success: true };
+    }),
+
+  // Account: change password (requires current password verification)
+  changePassword: tenantProcedure
+    .input(z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user.passwordHash) throw new Error("No password set on this account.");
+      const valid = await verifyPassword(input.currentPassword, ctx.user.passwordHash);
+      if (!valid) throw new Error("Current password is incorrect.");
+      const passwordHash = await hashPassword(input.newPassword);
+      await updateUser(ctx.user.id, { passwordHash, mustChangePassword: false });
+      return { success: true };
     }),
 
   // Documents

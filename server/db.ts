@@ -509,6 +509,14 @@ export async function getUnitsByProperty(propertyId: string) {
   return await db.select().from(units).where(eq(units.propertyId, propertyId));
 }
 
+export async function getUnitById(id: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const result = await db.select().from(units).where(eq(units.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
 export async function updateTenant(id: string, data: Record<string, unknown>) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

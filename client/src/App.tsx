@@ -27,6 +27,7 @@ import TenantDashboard from "@/pages/TenantDashboard";
 import TenantPayments from "@/pages/TenantPayments";
 import TenantMaintenance from "@/pages/TenantMaintenance";
 import TenantDocuments from "@/pages/TenantDocuments";
+import TenantSettings from "@/pages/TenantSettings";
 import AdminLogin from "@/pages/AdminLogin";
 import OwnerLogin from "@/pages/OwnerLogin";
 import TenantLogin from "@/pages/TenantLogin";
@@ -79,6 +80,7 @@ function App() {
             <Route path={"/tenant/payments"} component={TenantPayments} />
             <Route path={"/tenant/maintenance"} component={TenantMaintenance} />
             <Route path={"/tenant/documents"} component={TenantDocuments} />
+            <Route path={"/tenant/settings"} component={TenantSettings} />
             
             {/* Public Routes with Layout */}
             <Route path={"/404"} component={NotFound} />
