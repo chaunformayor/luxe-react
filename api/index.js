@@ -12,7 +12,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
 // server/db.ts
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 
 // drizzle/schema.ts
@@ -253,7 +253,7 @@ var ENV = {
 };
 
 // server/db.ts
-import { count, sum } from "drizzle-orm";
+import { count, sum, and } from "drizzle-orm";
 var _db = null;
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -651,7 +651,24 @@ async function getOwnerTenants(ownerId) {
     const ownerProps = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
     const propIds = ownerProps.map((p) => p.id);
     if (propIds.length === 0) return [];
-    return await db.select().from(tenants);
+    const ownerUnits = await db.select({ id: units.id }).from(units).where(inArray(units.propertyId, propIds));
+    const unitIds = ownerUnits.map((u) => u.id);
+    if (unitIds.length === 0) return [];
+    return await db.select({
+      id: tenants.id,
+      userId: tenants.userId,
+      unitId: tenants.unitId,
+      leaseStartDate: tenants.leaseStartDate,
+      leaseEndDate: tenants.leaseEndDate,
+      status: tenants.status,
+      createdAt: tenants.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+      unitNumber: units.unitNumber,
+      rentAmount: units.rentAmount,
+      propertyName: properties.name,
+      propertyAddress: properties.address
+    }).from(tenants).leftJoin(users, eq(tenants.userId, users.id)).leftJoin(units, eq(tenants.unitId, units.id)).leftJoin(properties, eq(units.propertyId, properties.id)).where(inArray(tenants.unitId, unitIds));
   } catch (error) {
     console.error("[Database] Failed to get owner tenants:", error);
     throw error;
@@ -661,7 +678,26 @@ async function getOwnerPayments(ownerId) {
   const db = await getDb();
   if (!db) return [];
   try {
-    return await db.select().from(payments);
+    const ownerProps = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
+    const propIds = ownerProps.map((p) => p.id);
+    if (propIds.length === 0) return [];
+    const ownerUnits = await db.select({ id: units.id }).from(units).where(inArray(units.propertyId, propIds));
+    const unitIds = ownerUnits.map((u) => u.id);
+    if (unitIds.length === 0) return [];
+    return await db.select({
+      id: payments.id,
+      tenantId: payments.tenantId,
+      unitId: payments.unitId,
+      amount: payments.amount,
+      status: payments.status,
+      paymentMethod: payments.paymentMethod,
+      description: payments.description,
+      dueDate: payments.dueDate,
+      paidDate: payments.paidDate,
+      createdAt: payments.createdAt,
+      userName: users.name,
+      unitNumber: units.unitNumber
+    }).from(payments).leftJoin(tenants, eq(payments.tenantId, tenants.id)).leftJoin(users, eq(tenants.userId, users.id)).leftJoin(units, eq(payments.unitId, units.id)).where(inArray(payments.unitId, unitIds));
   } catch (error) {
     console.error("[Database] Failed to get owner payments:", error);
     throw error;
@@ -671,7 +707,25 @@ async function getOwnerInvoices(ownerId) {
   const db = await getDb();
   if (!db) return [];
   try {
-    return await db.select().from(invoices);
+    const ownerProps = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
+    const propIds = ownerProps.map((p) => p.id);
+    if (propIds.length === 0) return [];
+    const ownerUnits = await db.select({ id: units.id }).from(units).where(inArray(units.propertyId, propIds));
+    const unitIds = ownerUnits.map((u) => u.id);
+    if (unitIds.length === 0) return [];
+    return await db.select({
+      id: invoices.id,
+      tenantId: invoices.tenantId,
+      unitId: invoices.unitId,
+      amount: invoices.amount,
+      dueDate: invoices.dueDate,
+      paidDate: invoices.paidDate,
+      status: invoices.status,
+      description: invoices.description,
+      createdAt: invoices.createdAt,
+      userName: users.name,
+      unitNumber: units.unitNumber
+    }).from(invoices).leftJoin(tenants, eq(invoices.tenantId, tenants.id)).leftJoin(users, eq(tenants.userId, users.id)).leftJoin(units, eq(invoices.unitId, units.id)).where(inArray(invoices.unitId, unitIds));
   } catch (error) {
     console.error("[Database] Failed to get owner invoices:", error);
     throw error;
@@ -681,7 +735,24 @@ async function getOwnerMaintenanceRequests(ownerId) {
   const db = await getDb();
   if (!db) return [];
   try {
-    return await db.select().from(maintenanceRequests);
+    const ownerProps = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
+    const propIds = ownerProps.map((p) => p.id);
+    if (propIds.length === 0) return [];
+    return await db.select({
+      id: maintenanceRequests.id,
+      propertyId: maintenanceRequests.propertyId,
+      unitId: maintenanceRequests.unitId,
+      tenantId: maintenanceRequests.tenantId,
+      title: maintenanceRequests.title,
+      description: maintenanceRequests.description,
+      priority: maintenanceRequests.priority,
+      status: maintenanceRequests.status,
+      assignedTo: maintenanceRequests.assignedTo,
+      createdAt: maintenanceRequests.createdAt,
+      updatedAt: maintenanceRequests.updatedAt,
+      propertyName: properties.name,
+      propertyAddress: properties.address
+    }).from(maintenanceRequests).leftJoin(properties, eq(maintenanceRequests.propertyId, properties.id)).where(inArray(maintenanceRequests.propertyId, propIds));
   } catch (error) {
     console.error("[Database] Failed to get owner maintenance requests:", error);
     throw error;
@@ -691,7 +762,10 @@ async function getOwnerDocuments(ownerId) {
   const db = await getDb();
   if (!db) return [];
   try {
-    return await db.select().from(documents);
+    const ownerProps = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
+    const propIds = ownerProps.map((p) => p.id);
+    if (propIds.length === 0) return [];
+    return await db.select().from(documents).where(inArray(documents.propertyId, propIds));
   } catch (error) {
     console.error("[Database] Failed to get owner documents:", error);
     throw error;
@@ -701,14 +775,21 @@ async function getOwnerStats(ownerId) {
   const db = await getDb();
   if (!db) return null;
   try {
-    const [propsCount, tenantsCount, maintenanceCount, revenueResult] = await Promise.all([
-      db.select({ count: count() }).from(properties).where(eq(properties.ownerId, ownerId)),
-      db.select({ count: count() }).from(tenants),
-      db.select({ count: count() }).from(maintenanceRequests),
-      db.select({ total: sum(payments.amount) }).from(payments)
+    const ownerPropsData = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
+    const propIds = ownerPropsData.map((p) => p.id);
+    const totalProperties = propIds.length;
+    if (propIds.length === 0) {
+      return { totalProperties: 0, totalTenants: 0, totalRevenue: 0, pendingMaintenance: 0 };
+    }
+    const ownerUnitsData = await db.select({ id: units.id }).from(units).where(inArray(units.propertyId, propIds));
+    const unitIds = ownerUnitsData.map((u) => u.id);
+    const [tenantsCount, maintenanceCount, revenueResult] = await Promise.all([
+      unitIds.length ? db.select({ count: count() }).from(tenants).where(inArray(tenants.unitId, unitIds)) : Promise.resolve([{ count: 0 }]),
+      db.select({ count: count() }).from(maintenanceRequests).where(and(inArray(maintenanceRequests.propertyId, propIds), eq(maintenanceRequests.status, "open"))),
+      unitIds.length ? db.select({ total: sum(payments.amount) }).from(payments).where(and(inArray(payments.unitId, unitIds), eq(payments.status, "completed"))) : Promise.resolve([{ total: "0" }])
     ]);
     return {
-      totalProperties: propsCount[0]?.count || 0,
+      totalProperties,
       totalTenants: tenantsCount[0]?.count || 0,
       totalRevenue: revenueResult[0]?.total || 0,
       pendingMaintenance: maintenanceCount[0]?.count || 0
@@ -1948,6 +2029,23 @@ var ownerRouter = router({
   // Documents
   getDocuments: ownerProcedure.query(async ({ ctx }) => {
     return await getOwnerDocuments(ctx.user.id);
+  }),
+  // Account: update name
+  updateProfile: ownerProcedure.input(z3.object({ name: z3.string().min(1) })).mutation(async ({ input, ctx }) => {
+    await updateUser(ctx.user.id, { name: input.name });
+    return { success: true };
+  }),
+  // Account: change password
+  changePassword: ownerProcedure.input(z3.object({
+    currentPassword: z3.string().min(1),
+    newPassword: z3.string().min(8, "Password must be at least 8 characters")
+  })).mutation(async ({ input, ctx }) => {
+    if (!ctx.user.passwordHash) throw new Error("No password set on this account.");
+    const valid = await verifyPassword(input.currentPassword, ctx.user.passwordHash);
+    if (!valid) throw new Error("Current password is incorrect.");
+    const passwordHash = await hashPassword(input.newPassword);
+    await updateUser(ctx.user.id, { passwordHash, mustChangePassword: false });
+    return { success: true };
   })
 });
 

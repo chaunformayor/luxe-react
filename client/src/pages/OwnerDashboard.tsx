@@ -1,9 +1,9 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import OwnerLayout from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Users, DollarSign, AlertCircle, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Building2, Users, DollarSign, AlertCircle, KeyRound, Eye, EyeOff, ArrowRight } from "lucide-react";
 
 function ForceChangePassword() {
   const [newPassword, setNewPassword] = useState("");
@@ -77,6 +77,13 @@ function ForceChangePassword() {
   );
 }
 
+const quickLinks = [
+  { label: "My Properties", desc: "View and manage your properties", href: "/owner/properties", icon: Building2 },
+  { label: "Tenants", desc: "Manage tenants across your properties", href: "/owner/tenants", icon: Users },
+  { label: "Payments", desc: "View invoices and revenue", href: "/owner/payments", icon: DollarSign },
+  { label: "Maintenance", desc: "Track open work orders", href: "/owner/maintenance", icon: AlertCircle },
+];
+
 export default function OwnerDashboard() {
   const { data: stats, isLoading } = trpc.owner.getStats.useQuery();
   const { data: user, isLoading: userLoading } = trpc.auth.me.useQuery();
@@ -101,149 +108,67 @@ export default function OwnerDashboard() {
 
   if ((user as any)?.mustChangePassword) return <ForceChangePassword />;
 
-  const StatCard = ({ title, value, icon: Icon, color }: any) => (
-    <Card className="hover:shadow-lg transition">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
-        <Icon className={`h-4 w-4 ${color}`} />
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Skeleton className="h-8 w-24" />
-        ) : (
-          <div className="text-2xl font-bold text-gray-900">{value}</div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  const statCards = [
+    { title: "My Properties", value: stats?.totalProperties ?? 0, icon: Building2 },
+    { title: "Active Tenants", value: stats?.totalTenants ?? 0, icon: Users },
+    { title: "Open Maintenance", value: stats?.pendingMaintenance ?? 0, icon: AlertCircle },
+    { title: "Total Revenue", value: `$${Number(stats?.totalRevenue ?? 0).toLocaleString()}`, icon: DollarSign },
+  ];
 
   return (
     <OwnerLayout>
       <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-lg">
-          <h1 className="text-3xl font-bold mb-2">Welcome, {user?.name || "Owner"}!</h1>
-          <p className="text-green-100">Manage your properties, tenants, and view financial reports.</p>
+        {/* Welcome banner */}
+        <div className="bg-[#0A1628] text-white p-6 rounded-xl flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Welcome back, {user?.name || "Owner"}</h1>
+            <p className="text-[#C9A84C]/80 text-sm mt-1">Here's an overview of your portfolio.</p>
+          </div>
+          <div className="hidden md:block w-12 h-12 rounded-full bg-[#C9A84C]/20 flex items-center justify-center">
+            <Building2 className="text-[#C9A84C]" size={24} />
+          </div>
         </div>
 
-        {/* Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="My Properties"
-            value={stats?.totalProperties || 0}
-            icon={Building2}
-            color="text-blue-500"
-          />
-          <StatCard
-            title="Active Tenants"
-            value={stats?.totalTenants || 0}
-            icon={Users}
-            color="text-green-500"
-          />
-          <StatCard
-            title="Pending Maintenance"
-            value={stats?.pendingMaintenance || 0}
-            icon={AlertCircle}
-            color="text-orange-500"
-          />
-          <StatCard
-            title="Total Revenue"
-            value={`$${(stats?.totalRevenue || 0).toLocaleString()}`}
-            icon={DollarSign}
-            color="text-purple-500"
-          />
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map(({ title, value, icon: Icon }) => (
+            <Card key={title} className="hover:shadow-md transition border-gray-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-bold uppercase tracking-widest text-gray-500">{title}</CardTitle>
+                <div className="w-8 h-8 rounded-lg bg-[#0A1628]/5 flex items-center justify-center">
+                  <Icon size={16} className="text-[#C9A84C]" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <div className="text-2xl font-bold text-[#0A1628]">{value}</div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Recent Properties */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Properties</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">View and manage all your properties</p>
-                <a
-                  href="/owner/properties"
-                  className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                >
-                  View Properties
-                </a>
+        {/* Quick links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {quickLinks.map(({ label, desc, href, icon: Icon }) => (
+            <a
+              key={href}
+              href={href}
+              className="group flex items-center gap-4 p-5 bg-white rounded-xl border border-gray-200 hover:border-[#C9A84C] hover:shadow-md transition"
+            >
+              <div className="w-11 h-11 rounded-lg bg-[#0A1628] flex items-center justify-center shrink-0 group-hover:bg-[#C9A84C] transition">
+                <Icon size={20} className="text-[#C9A84C] group-hover:text-[#0A1628] transition" />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Tenant Management */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tenant Management</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">Manage tenants across your properties</p>
-                <a
-                  href="/owner/tenants"
-                  className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                >
-                  View Tenants
-                </a>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-[#0A1628] text-sm">{label}</p>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{desc}</p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Financial Reports */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Financial Reports</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">View payments, invoices, and revenue</p>
-                <a
-                  href="/owner/payments"
-                  className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-                >
-                  View Payments
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Maintenance Tracking */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Maintenance Tracking</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">Track maintenance requests and work orders</p>
-                <a
-                  href="/owner/maintenance"
-                  className="inline-block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition"
-                >
-                  View Maintenance
-                </a>
-              </div>
-            </CardContent>
-          </Card>
+              <ArrowRight size={16} className="text-gray-300 group-hover:text-[#C9A84C] transition shrink-0" />
+            </a>
+          ))}
         </div>
-
-        {/* Portal Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Owner Portal Features</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-800">
-                <strong>Welcome to your owner portal!</strong> From here you can manage all your properties,
-                track tenants, view financial reports, and monitor maintenance requests. Use the sidebar
-                navigation to access different sections of your portal.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </OwnerLayout>
   );

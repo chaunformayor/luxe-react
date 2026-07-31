@@ -23,6 +23,7 @@ import OwnerProperties from "@/pages/OwnerProperties";
 import OwnerTenants from "@/pages/OwnerTenants";
 import OwnerPayments from "@/pages/OwnerPayments";
 import OwnerMaintenance from "@/pages/OwnerMaintenance";
+import OwnerSettings from "@/pages/OwnerSettings";
 import TenantDashboard from "@/pages/TenantDashboard";
 import TenantPayments from "@/pages/TenantPayments";
 import TenantMaintenance from "@/pages/TenantMaintenance";
@@ -74,6 +75,7 @@ function App() {
             <Route path={"/owner/tenants"} component={OwnerTenants} />
             <Route path={"/owner/payments"} component={OwnerPayments} />
             <Route path={"/owner/maintenance"} component={OwnerMaintenance} />
+            <Route path={"/owner/settings"} component={OwnerSettings} />
             
             {/* Tenant Routes */}
             <Route path={"/tenant"} component={TenantDashboard} />

@@ -9,7 +9,9 @@ import {
   getOwnerDocuments,
   getOwnerStats,
   updateProperty,
+  updateUser,
 } from "./db";
+import { hashPassword, verifyPassword } from "./authRoutes";
 
 // Owner role check middleware
 const ownerProcedure = protectedProcedure.use(async (opts) => {
@@ -86,6 +88,29 @@ export const ownerRouter = router({
   getDocuments: ownerProcedure.query(async ({ ctx }) => {
     return await getOwnerDocuments(ctx.user.id);
   }),
+
+  // Account: update name
+  updateProfile: ownerProcedure
+    .input(z.object({ name: z.string().min(1) }))
+    .mutation(async ({ input, ctx }) => {
+      await updateUser(ctx.user.id, { name: input.name });
+      return { success: true };
+    }),
+
+  // Account: change password
+  changePassword: ownerProcedure
+    .input(z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8, "Password must be at least 8 characters"),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user.passwordHash) throw new Error("No password set on this account.");
+      const valid = await verifyPassword(input.currentPassword, ctx.user.passwordHash);
+      if (!valid) throw new Error("Current password is incorrect.");
+      const passwordHash = await hashPassword(input.newPassword);
+      await updateUser(ctx.user.id, { passwordHash, mustChangePassword: false });
+      return { success: true };
+    }),
 });
 
 export type OwnerRouter = typeof ownerRouter;

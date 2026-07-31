@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, LogOut, LayoutDashboard, Building2, Users, CreditCard, Wrench } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, Building2, Users, CreditCard, Wrench, Settings } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 const menuItems = [
@@ -9,6 +9,7 @@ const menuItems = [
   { path: "/owner/tenants", label: "Tenants", icon: Users },
   { path: "/owner/payments", label: "Payments", icon: CreditCard },
   { path: "/owner/maintenance", label: "Maintenance", icon: Wrench },
+  { path: "/owner/settings", label: "Account Settings", icon: Settings },
 ];
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {

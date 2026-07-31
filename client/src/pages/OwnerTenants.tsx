@@ -1,77 +1,73 @@
-﻿import React from "react";
+import React from "react";
 import { trpc } from "@/lib/trpc";
 import OwnerLayout from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users } from "lucide-react";
 
+const statusColors: Record<string, string> = {
+  active: "bg-green-100 text-green-800",
+  inactive: "bg-gray-100 text-gray-800",
+  evicted: "bg-red-100 text-red-800",
+};
+
 export default function OwnerTenants() {
   const { data: tenants, isLoading } = trpc.owner.getTenants.useQuery();
-
-  const statusColors: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
-    inactive: "bg-gray-100 text-gray-800",
-    evicted: "bg-red-100 text-red-800",
-  };
 
   return (
     <OwnerLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Tenant Management</h1>
-        </div>
+        <h1 className="text-3xl font-bold text-[#0A1628]">Tenants</h1>
 
-        {/* Tenants Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Tenants ({tenants?.length || 0})</CardTitle>
+            <CardTitle className="text-[#0A1628]">Your Tenants ({tenants?.length || 0})</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
             ) : tenants && tenants.length > 0 ? (
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Tenant ID</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Unit ID</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Lease Start</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Lease End</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                      <th className="text-left py-3 px-4 font-bold text-xs uppercase tracking-widest text-gray-500">Tenant</th>
+                      <th className="text-left py-3 px-4 font-bold text-xs uppercase tracking-widest text-gray-500">Unit</th>
+                      <th className="text-left py-3 px-4 font-bold text-xs uppercase tracking-widest text-gray-500">Property</th>
+                      <th className="text-left py-3 px-4 font-bold text-xs uppercase tracking-widest text-gray-500">Rent</th>
+                      <th className="text-left py-3 px-4 font-bold text-xs uppercase tracking-widest text-gray-500">Lease End</th>
+                      <th className="text-left py-3 px-4 font-bold text-xs uppercase tracking-widest text-gray-500">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {tenants.map((tenant: any) => (
                       <tr key={tenant.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-gray-900 font-medium text-sm">
-                          {tenant.id.substring(0, 12)}...
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-[#0A1628]">{tenant.userName || "—"}</div>
+                          <div className="text-xs text-gray-400">{tenant.userEmail || "—"}</div>
                         </td>
-                        <td className="py-3 px-4 text-gray-600 text-sm">
-                          {tenant.unitId?.substring(0, 12) || "N/A"}...
+                        <td className="py-3 px-4 text-gray-700">
+                          {tenant.unitNumber ? `Unit ${tenant.unitNumber}` : "—"}
                         </td>
-                        <td className="py-3 px-4 text-gray-600 text-sm">
-                          {tenant.leaseStartDate
-                            ? new Date(tenant.leaseStartDate).toLocaleDateString()
-                            : "-"}
+                        <td className="py-3 px-4 text-gray-700">
+                          <div>{tenant.propertyName || "—"}</div>
+                          {tenant.propertyAddress && (
+                            <div className="text-xs text-gray-400 truncate max-w-[180px]">{tenant.propertyAddress}</div>
+                          )}
                         </td>
-                        <td className="py-3 px-4 text-gray-600 text-sm">
+                        <td className="py-3 px-4 font-semibold text-[#0A1628]">
+                          {tenant.rentAmount ? `$${Number(tenant.rentAmount).toLocaleString()}/mo` : "—"}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600">
                           {tenant.leaseEndDate
                             ? new Date(tenant.leaseEndDate).toLocaleDateString()
-                            : "-"}
+                            : "—"}
                         </td>
                         <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              statusColors[tenant.status] || statusColors.active
-                            }`}
-                          >
-                            {tenant.status.charAt(0).toUpperCase() + tenant.status.slice(1)}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tenant.status] || statusColors.active}`}>
+                            {tenant.status?.charAt(0).toUpperCase() + tenant.status?.slice(1)}
                           </span>
                         </td>
                       </tr>
@@ -80,9 +76,10 @@ export default function OwnerTenants() {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <Users className="mx-auto mb-2 text-gray-400" size={32} />
-                <p className="text-gray-500">No tenants found</p>
+              <div className="text-center py-12">
+                <Users className="mx-auto mb-3 text-gray-300" size={40} />
+                <p className="text-gray-500 font-medium">No tenants found</p>
+                <p className="text-xs text-gray-400 mt-1">Tenants will appear here once assigned to your units.</p>
               </div>
             )}
           </CardContent>
