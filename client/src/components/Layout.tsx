@@ -18,11 +18,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { path: "/about", label: "About" },
     { path: "/services", label: "Services" },
     { path: "/properties", label: "Properties" },
+    { path: "/neighborhoods", label: "Neighborhoods" },
     { path: "/blog", label: "Blog" },
     { path: "/contact", label: "Contact" },
   ];
 
   const closeMobile = () => setMobileMenuOpen(false);
+
+  const isActive = (path: string) =>
+    path === "/" ? location === "/" : location.startsWith(path);
 
   const navLinkClass = (active: boolean) =>
     `px-3.5 py-2 transition-all text-sm font-medium ${
@@ -77,7 +81,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <nav className="hidden lg:flex items-center gap-1">
               {mainNavItems.map((item) => (
                 <Link key={item.path} href={item.path}>
-                  <span className={navLinkClass(location === item.path)}>
+                  <span className={navLinkClass(isActive(item.path))}>
                     {item.label}
                   </span>
                 </Link>
@@ -110,7 +114,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {mainNavItems.map((item) => (
                 <Link key={item.path} href={item.path}>
                   <span
-                    className={mobileNavLinkClass(location === item.path)}
+                    className={mobileNavLinkClass(isActive(item.path))}
                     onClick={closeMobile}
                   >
                     {item.label}

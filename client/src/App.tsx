@@ -41,6 +41,7 @@ import StCharles from "@/pages/StCharles";
 import Kirkwood from "@/pages/Kirkwood";
 import WebsterGroves from "@/pages/WebsterGroves";
 import SouthCity from "@/pages/SouthCity";
+import Neighborhoods from "@/pages/Neighborhoods";
 
 function App() {
   return (
@@ -145,6 +146,9 @@ function App() {
               <Layout>
                 <SouthCity />
               </Layout>
+            </Route>
+            <Route path={"/neighborhoods"}>
+              <Neighborhoods />
             </Route>
             <Route path={"/contact"}>
               <Layout>
