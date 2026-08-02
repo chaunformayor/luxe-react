@@ -136,8 +136,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Content — pt-[72px] offsets the fixed nav */}
-      <main className="flex-1 pt-[72px]">{children}</main>
+      {/* Main Content */}
+      <main className="flex-1">{children}</main>
 
       {/* Footer */}
       <footer className="bg-[var(--luxe-navy)] text-white">
