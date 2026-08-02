@@ -18,17 +18,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const closeMobile = () => setMobileMenuOpen(false);
 
   const navLinkClass = (active: boolean) =>
-    `px-4 py-2 rounded transition-all text-sm ${
+    `px-3.5 py-2 transition-all text-sm font-medium ${
       active
-        ? "bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold"
-        : "text-white hover:bg-[var(--luxe-gold)]/20 hover:text-[var(--luxe-gold)]"
+        ? "text-[var(--luxe-gold)]"
+        : "text-white hover:text-[var(--luxe-gold)]"
     }`;
 
   const mobileNavLinkClass = (active: boolean) =>
     `block px-4 py-2 rounded transition-all ${
       active
-        ? "bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold"
-        : "text-white hover:bg-[var(--luxe-gold)]/20"
+        ? "text-[var(--luxe-gold)] font-medium"
+        : "text-white hover:text-[var(--luxe-gold)]"
     }`;
 
   return (
@@ -77,12 +77,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ))}
 
               {/* Portal links */}
-              <a href="/login" className="px-4 py-2 rounded text-sm text-white hover:bg-[var(--luxe-gold)]/20 hover:text-[var(--luxe-gold)] transition-all">
-                Tenant Portal
-              </a>
-              <a href="/owner-login" className="px-4 py-2 rounded text-sm text-white hover:bg-[var(--luxe-gold)]/20 hover:text-[var(--luxe-gold)] transition-all">
-                Owner Portal
-              </a>
+              <div className="flex items-center gap-2.5 ml-4 pl-4 border-l border-white/20">
+                <a href="/login" className="px-4 py-2 rounded text-sm font-semibold text-white border border-white/40 hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-all">
+                  Tenant Portal
+                </a>
+                <a href="/owner-login" className="px-4 py-2 rounded text-sm font-semibold bg-[var(--luxe-gold)] text-[var(--luxe-navy)] hover:bg-[#A88830] transition-all">
+                  Owner Portal
+                </a>
+              </div>
             </nav>
 
             {/* Mobile Menu Button */}
@@ -110,14 +112,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               ))}
               <a
                 href="/login"
-                className="block px-4 py-2 rounded text-white hover:bg-[var(--luxe-gold)]/20 transition-all"
+                className="block px-4 py-2 rounded text-sm font-semibold text-white border border-white/40 hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-all"
                 onClick={closeMobile}
               >
                 Tenant Portal
               </a>
               <a
                 href="/owner-login"
-                className="block px-4 py-2 rounded text-white hover:bg-[var(--luxe-gold)]/20 transition-all"
+                className="block px-4 py-2 rounded text-sm font-semibold bg-[var(--luxe-gold)] text-[var(--luxe-navy)] hover:bg-[#A88830] transition-all"
                 onClick={closeMobile}
               >
                 Owner Portal
