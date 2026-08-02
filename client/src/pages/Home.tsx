@@ -433,110 +433,114 @@ export default function Home() {
             >
               Simple, Straightforward Fees. No Surprises.
             </h2>
-            <div className="w-12 h-0.5 bg-[var(--luxe-gold)] mx-auto mt-4 mb-6" />
+            <div className="w-[60px] h-[3px] bg-[var(--luxe-gold)] mx-auto mt-4 mb-4" />
             <p className="text-gray-600 max-w-xl mx-auto">
               All plans include a dedicated property manager, online owner portal, and 24/7 maintenance
               coordination.
             </p>
 
-            {/* Toggle */}
-            <div className="flex justify-center gap-0 mt-8">
-              <button
-                onClick={() => setPricingTab("traditional")}
-                className={`px-8 py-3 text-sm font-semibold border transition-all ${
-                  pricingTab === "traditional"
-                    ? "bg-[var(--luxe-navy)] text-white border-[var(--luxe-navy)]"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-[var(--luxe-navy)]"
-                }`}
-              >
-                TRADITIONAL RENTAL
-              </button>
-              <button
-                onClick={() => setPricingTab("str")}
-                className={`px-8 py-3 text-sm font-semibold border-l-0 border transition-all ${
-                  pricingTab === "str"
-                    ? "bg-[var(--luxe-navy)] text-white border-[var(--luxe-navy)]"
-                    : "bg-white text-gray-500 border-gray-200 hover:border-[var(--luxe-navy)]"
-                }`}
-              >
-                SHORT-TERM RENTAL
-              </button>
+            {/* Toggle — pill style matching live site */}
+            <div className="flex justify-center mt-8">
+              <div className="flex p-1 rounded-[4px]" style={{ background: "rgba(27,58,92,0.08)" }}>
+                <button
+                  onClick={() => setPricingTab("traditional")}
+                  className={`px-7 py-2.5 text-[13px] font-medium rounded-[2px] transition-all ${
+                    pricingTab === "traditional"
+                      ? "bg-[var(--luxe-navy)] text-white"
+                      : "bg-transparent text-gray-800 hover:bg-[var(--luxe-navy)]/10"
+                  }`}
+                >
+                  Traditional Rental
+                </button>
+                <button
+                  onClick={() => setPricingTab("str")}
+                  className={`px-7 py-2.5 text-[13px] font-medium rounded-[2px] transition-all ${
+                    pricingTab === "str"
+                      ? "bg-[var(--luxe-navy)] text-white"
+                      : "bg-transparent text-gray-800 hover:bg-[var(--luxe-navy)]/10"
+                  }`}
+                >
+                  Short-Term Rental
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="max-w-2xl mx-auto space-y-4">
+          {/* 3-column grid matching live site */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((plan, i) => (
               <div
                 key={i}
-                className={`rounded-xl overflow-hidden relative ${
+                className={`relative rounded-lg py-9 px-7 ${
                   plan.featured
-                    ? "bg-[var(--luxe-navy)] text-white shadow-2xl"
-                    : "bg-white border border-gray-200 shadow-sm"
+                    ? "bg-[var(--luxe-navy)]"
+                    : "bg-white"
                 }`}
+                style={{
+                  border: plan.featured
+                    ? "1px solid var(--luxe-navy)"
+                    : "1px solid rgba(27,58,92,0.1)",
+                }}
               >
                 {plan.featured && (
-                  <div className="absolute top-6 right-6 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] text-xs font-bold uppercase tracking-wide px-4 py-1.5 rounded-full">
-                    MOST POPULAR
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] text-[10px] font-semibold tracking-[2px] uppercase px-3.5 py-1 rounded-full whitespace-nowrap">
+                    Most Popular
                   </div>
                 )}
-                <div className="p-8">
-                  <p
-                    className={`text-xs font-bold uppercase tracking-[3px] mb-2 ${
-                      plan.featured ? "text-[var(--luxe-gold)]" : "text-[var(--luxe-gold)]"
-                    }`}
-                  >
-                    {plan.label}
-                  </p>
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span
-                      className={`text-4xl font-bold ${plan.featured ? "text-white" : "text-[var(--luxe-navy)]"}`}
-                      style={{ fontFamily: "var(--font-heading)" }}
-                    >
-                      {plan.price}
-                    </span>
-                    <span className={`text-sm ${plan.featured ? "text-white/60" : "text-gray-500"}`}>
-                      {plan.period}
-                    </span>
-                  </div>
-                  <p
-                    className={`text-xl font-bold mb-2 ${plan.featured ? "text-white" : "text-[var(--luxe-navy)]"}`}
+
+                <p className="text-[10px] font-semibold uppercase tracking-[3px] text-[var(--luxe-gold)] mb-3.5">
+                  {plan.label}
+                </p>
+
+                <div className="mb-1 leading-none">
+                  <span
+                    className={`text-[44px] font-bold ${plan.featured ? "text-white" : "text-[var(--luxe-navy)]"}`}
                     style={{ fontFamily: "var(--font-heading)" }}
                   >
-                    {plan.name}
-                  </p>
-                  <p className={`text-sm mb-6 ${plan.featured ? "text-white/60" : "text-gray-500"}`}>
-                    {plan.desc}
-                  </p>
-
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((f, j) => (
-                      <li
-                        key={j}
-                        className={`flex items-center gap-3 text-sm ${plan.featured ? "text-white/80" : "text-gray-600"}`}
-                      >
-                        <span className="text-[var(--luxe-gold)] font-bold">✓</span>
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link href={plan.cta === "Let's Talk" ? "/contact" : "/contact"}>
-                    <span
-                      className={`block text-center py-3.5 px-6 font-semibold text-sm rounded cursor-pointer transition-colors ${
-                        plan.featured
-                          ? "bg-[var(--luxe-gold)] text-[var(--luxe-navy)] hover:bg-[var(--luxe-gold)]/90"
-                          : "bg-[var(--luxe-navy)] text-white hover:bg-[var(--luxe-navy)]/90"
-                      }`}
-                    >
-                      {plan.cta}
-                    </span>
-                  </Link>
+                    {plan.price}
+                  </span>
+                  <span className={`text-sm ${plan.featured ? "text-white/50" : "text-gray-500"}`}>
+                    {plan.period}
+                  </span>
                 </div>
+
+                <p
+                  className={`text-[17px] font-semibold mb-2 ${plan.featured ? "text-white" : "text-[var(--luxe-navy)]"}`}
+                >
+                  {plan.name}
+                </p>
+                <p className={`text-sm mb-6 leading-relaxed ${plan.featured ? "text-white/50" : "text-gray-500"}`}>
+                  {plan.desc}
+                </p>
+
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((f, j) => (
+                    <li
+                      key={j}
+                      className={`flex items-start gap-3 text-[13px] ${plan.featured ? "text-white/70" : "text-gray-800"}`}
+                    >
+                      <span className="text-[var(--luxe-gold)] font-bold flex-shrink-0">✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link href="/contact">
+                  <span
+                    className={`block text-center py-3.5 px-6 font-semibold text-sm rounded-md cursor-pointer transition-all ${
+                      plan.featured
+                        ? "bg-[var(--luxe-gold)] text-[var(--luxe-navy)] hover:bg-[#A88830]"
+                        : "bg-[var(--luxe-navy)] text-white hover:bg-[var(--luxe-navy)]/90"
+                    }`}
+                  >
+                    {plan.cta}
+                  </span>
+                </Link>
               </div>
             ))}
           </div>
 
-          <p className="text-center text-gray-400 text-sm mt-8">
+          <p className="text-center text-gray-400 text-sm mt-5">
             One-time leasing/placement fee: 50% of first month's rent · Lease renewal: $150 flat · Eviction
             coordination: $250 + court costs
           </p>
