@@ -256,14 +256,14 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--luxe-navy)]/20">
             {stats.map((s, i) => (
-              <div key={i} className="flex flex-col items-center py-7 px-6">
+              <div key={i} className="flex flex-col items-center py-9 px-6">
                 <span
-                  className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)]"
+                  className="text-[36px] font-bold text-[var(--luxe-navy)]"
                   style={{ fontFamily: "var(--font-heading)" }}
                 >
                   {s.value}
                 </span>
-                <span className="text-[var(--luxe-navy)]/60 text-xs uppercase tracking-widest mt-2 text-center">
+                <span className="text-[var(--luxe-navy)]/60 text-[0.8rem] uppercase tracking-[1px] mt-2 text-center">
                   {s.label}
                 </span>
               </div>
@@ -273,7 +273,7 @@ export default function Home() {
       </section>
 
       {/* ── Differentiator Grid ── */}
-      <section className="bg-[var(--luxe-navy)] py-16">
+      <section className="bg-[var(--luxe-navy)] py-20">
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 gap-8">
             {diffs.map((d, i) => (
@@ -292,39 +292,39 @@ export default function Home() {
       </section>
 
       {/* ── Services ── */}
-      <section className="py-24 bg-[var(--luxe-light)]">
+      <section className="py-20 bg-[var(--luxe-light)]">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-14">
             <h2
-              className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)]"
+              className="text-[2.75rem] font-bold text-[var(--luxe-navy)]"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               Full-Service Property Management — And More
             </h2>
-            <p className="text-gray-600 mt-4 max-w-2xl mx-auto text-lg">
+            <p className="text-gray-600 mt-4 max-w-[600px] mx-auto text-[1.1rem]">
               We're the only St. Louis team that handles deal sourcing, rehab, and property management under one
               roof. No handoffs, no markups, no gaps.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {services.map((svc, i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                className="bg-white rounded-xl p-7 shadow-[0_4px_16px_rgba(0,0,0,0.1)] hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)] transition-all"
               >
                 <div
-                  className="w-14 h-14 rounded-lg flex items-center justify-center text-2xl mb-6"
+                  className="w-[52px] h-[52px] rounded-lg flex items-center justify-center text-2xl mb-[18px]"
                   style={{ background: "rgba(201,168,76,0.12)" }}
                 >
                   {svc.icon}
                 </div>
                 <h3
-                  className="text-xl font-bold text-[var(--luxe-navy)] mb-3"
+                  className="text-[1.1rem] font-bold text-[var(--luxe-navy)] mb-3"
                   style={{ fontFamily: "var(--font-heading)" }}
                 >
                   {svc.title}
                 </h3>
-                <p className="text-gray-600 leading-relaxed">{svc.desc}</p>
+                <p className="text-gray-600 leading-relaxed text-sm">{svc.desc}</p>
               </div>
             ))}
           </div>
@@ -339,17 +339,17 @@ export default function Home() {
       </section>
 
       {/* ── Featured Properties ── */}
-      <section className="py-24 bg-white">
+      <section className="py-20 bg-white">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-14">
             <h2
-              className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)]"
+              className="text-[2.75rem] font-bold text-[var(--luxe-navy)]"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               Featured Properties
             </h2>
             <div className="w-12 h-0.5 bg-[var(--luxe-gold)] mx-auto mt-4 mb-6" />
-            <p className="text-gray-600 text-lg max-w-xl mx-auto">
+            <p className="text-gray-600 text-[1.1rem] max-w-[600px] mx-auto">
               Discover our handpicked selection of premium properties available for lease and sale in the St.
               Louis area.
             </p>
@@ -357,13 +357,13 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {featuredProperties.map((p, i) => (
-              <div key={i} className="rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+              <div key={i} className="rounded-xl overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.1)] hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)] transition-all">
                 <div className="h-56 bg-gray-100 flex items-center justify-center">
                   <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
                 </div>
-                <div className="p-6">
+                <div className="p-[22px]">
                   <div className="flex items-baseline gap-1 mb-2">
                     <span
                       className="text-2xl font-bold text-[var(--luxe-navy)]"
@@ -424,11 +424,11 @@ export default function Home() {
       </section>
 
       {/* ── Pricing ── */}
-      <section className="py-24 bg-[var(--luxe-light)]">
+      <section className="py-20 bg-[var(--luxe-light)]">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2
-              className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)]"
+              className="text-[2.75rem] font-bold text-[var(--luxe-navy)]"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               Simple, Straightforward Fees. No Surprises.
@@ -548,28 +548,28 @@ export default function Home() {
       </section>
 
       {/* ── Neighborhoods ── */}
-      <section className="py-24 bg-white">
+      <section className="py-20 bg-[var(--luxe-light)]">
         <div className="container mx-auto">
-          <div className="mb-16">
+          <div className="mb-14">
             <h2
-              className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)]"
+              className="text-[2.75rem] font-bold text-[var(--luxe-navy)]"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               We Manage Properties Across Greater St. Louis
             </h2>
             <div className="w-12 h-0.5 bg-[var(--luxe-gold)] mt-4 mb-4" />
-            <p className="text-gray-600 text-lg max-w-2xl">
+            <p className="text-gray-600 text-[1.1rem] max-w-[600px]">
               From North County to St. Charles, Kirkwood to South City — we know these markets because we work
               in them every day.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {neighborhoods.map((n) => (
               <Link key={n.slug} href={`/neighborhoods/${n.slug}`}>
-                <div className="p-6 border border-gray-200 rounded-xl cursor-pointer hover:border-[var(--luxe-gold)] hover:shadow-md transition-all group">
+                <div className="py-7 px-6 bg-white rounded-lg cursor-pointer border border-transparent hover:border-[var(--luxe-gold)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all group">
                   <span
-                    className="text-3xl font-bold text-[var(--luxe-gold)] block mb-3"
+                    className="text-[22px] font-bold text-[var(--luxe-gold)] block mb-3"
                     style={{ fontFamily: "var(--font-heading)" }}
                   >
                     {n.num}
@@ -587,8 +587,8 @@ export default function Home() {
 
             {/* Your Area card */}
             <Link href="/contact">
-              <div className="p-6 border border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-[var(--luxe-gold)] hover:shadow-md transition-all group">
-                <span className="text-3xl font-bold text-gray-300 block mb-3">+</span>
+              <div className="py-7 px-6 bg-white rounded-lg border border-dashed border-gray-300 cursor-pointer hover:border-[var(--luxe-gold)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all group">
+                <span className="text-[22px] font-bold text-gray-300 block mb-3">+</span>
                 <h3
                   className="text-lg font-bold text-[var(--luxe-navy)] mb-1 group-hover:text-[var(--luxe-gold)] transition-colors"
                   style={{ fontFamily: "var(--font-heading)" }}
@@ -605,7 +605,7 @@ export default function Home() {
       </section>
 
       {/* ── Why Choose Us ── */}
-      <section className="py-24 bg-[var(--luxe-light)]">
+      <section className="py-20 bg-white">
         <div className="container mx-auto">
           <div className="grid lg:grid-cols-2 gap-16">
             {/* Left */}
@@ -615,7 +615,7 @@ export default function Home() {
                 WHY CHOOSE US
               </p>
               <h2
-                className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)] mb-4"
+                className="text-[2.75rem] font-bold text-[var(--luxe-navy)] mb-4"
                 style={{ fontFamily: "var(--font-heading)" }}
               >
                 St. Louis's Only End-to-End Investor Platform.
@@ -687,17 +687,17 @@ export default function Home() {
       </section>
 
       {/* ── Testimonials ── */}
-      <section className="py-24 bg-[var(--luxe-navy)]">
+      <section className="py-20 bg-[var(--luxe-navy)]">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-14">
             <h2
-              className="text-4xl md:text-5xl font-bold text-white"
+              className="text-[2.75rem] font-bold text-white"
               style={{ fontFamily: "var(--font-heading)" }}
             >
               What Our Clients Say
             </h2>
             <div className="w-12 h-0.5 bg-[var(--luxe-gold)] mx-auto mt-4 mb-4" />
-            <p className="text-white/60 text-lg">
+            <p className="text-white/60 text-[1.1rem]">
               Hear from property owners and tenants who trust Luxe Property Solutions.
             </p>
           </div>
@@ -717,7 +717,7 @@ export default function Home() {
                 <p className="text-white/80 text-sm leading-relaxed italic mb-6">"{t.quote}"</p>
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-[var(--luxe-navy)] flex-shrink-0"
+                    className="w-[46px] h-[46px] rounded-full flex items-center justify-center text-sm font-bold text-[var(--luxe-navy)] flex-shrink-0"
                     style={{ background: "var(--luxe-gold)" }}
                   >
                     {t.initials}
@@ -739,10 +739,10 @@ export default function Home() {
       </section>
 
       {/* ── CTA Banner ── */}
-      <section className="py-24" style={{ background: "linear-gradient(135deg, #0A1628 0%, #1A2F45 100%)", borderTop: "1px solid rgba(201,168,76,0.2)" }}>
+      <section className="py-20" style={{ background: "linear-gradient(135deg, #0A1628 0%, #1A2F45 100%)", borderTop: "1px solid rgba(201,168,76,0.2)" }}>
         <div className="container mx-auto text-center">
           <h2
-            className="text-3xl md:text-5xl font-bold text-white mb-6"
+            className="text-[2.75rem] font-bold text-white mb-6"
             style={{ fontFamily: "var(--font-heading)" }}
           >
             Ready to Work With St. Louis's Only End-to-End Investor Platform?
