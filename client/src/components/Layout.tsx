@@ -1,10 +1,17 @@
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const mainNavItems = [
     { path: "/", label: "Home" },
@@ -34,9 +41,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-[var(--luxe-navy)] text-white sticky top-0 z-50 shadow-lg">
+      <header className={`text-white fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-[var(--luxe-navy)] shadow-[0_2px_20px_rgba(0,0,0,0.3)]" : "bg-transparent"}`}>
         <div className="container mx-auto">
-          <div className="flex items-center justify-between py-4">
+          <div className="flex items-center justify-between h-[72px]">
             {/* Logo */}
             <Link href="/">
               <span className="cursor-pointer block">
@@ -78,10 +85,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
               {/* Portal links */}
               <div className="flex items-center gap-2.5 ml-4 pl-4 border-l border-white/20">
-                <a href="/login" className="px-4 py-2 rounded text-sm font-semibold text-white border border-white/40 hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-all">
+                <a href="/login" className="px-4 py-2 rounded-md text-[0.85rem] font-semibold text-white border border-white/40 hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-all">
                   Tenant Portal
                 </a>
-                <a href="/owner-login" className="px-4 py-2 rounded text-sm font-semibold bg-[var(--luxe-gold)] text-[var(--luxe-navy)] hover:bg-[#A88830] transition-all">
+                <a href="/owner-login" className="px-4 py-2 rounded-md text-[0.85rem] font-semibold bg-[var(--luxe-gold)] text-[var(--luxe-navy)] hover:bg-[#A88830] transition-all">
                   Owner Portal
                 </a>
               </div>
@@ -129,8 +136,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1">{children}</main>
+      {/* Main Content — pt-[72px] offsets the fixed nav */}
+      <main className="flex-1 pt-[72px]">{children}</main>
 
       {/* Footer */}
       <footer className="bg-[var(--luxe-navy)] text-white">
