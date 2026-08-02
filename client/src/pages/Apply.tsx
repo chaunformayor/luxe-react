@@ -345,7 +345,7 @@ export default function Apply() {
   if (submitted) {
     return (
       <Layout>
-        <section className="bg-[var(--luxe-navy)] text-white py-20">
+        <section className="bg-[var(--luxe-navy)] text-white pt-[130px] pb-[70px]">
           <div className="container mx-auto">
             <p className="text-white/40 text-sm mb-4">
               <Link href="/"><span className="hover:text-[var(--luxe-gold)] cursor-pointer transition-colors">Home</span></Link>
@@ -404,7 +404,7 @@ export default function Apply() {
   return (
     <Layout>
       {/* ── Hero ── */}
-      <section className="bg-[var(--luxe-navy)] text-white py-20">
+      <section className="bg-[var(--luxe-navy)] text-white pt-[130px] pb-[70px]">
         <div className="container mx-auto">
           <p className="text-white/40 text-sm mb-4">
             <Link href="/"><span className="hover:text-[var(--luxe-gold)] cursor-pointer transition-colors">Home</span></Link>

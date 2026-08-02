@@ -256,7 +256,7 @@ export default function Home() {
         <div className="container mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-[var(--luxe-navy)]/20">
             {stats.map((s, i) => (
-              <div key={i} className="flex flex-col items-center py-10 px-4">
+              <div key={i} className="flex flex-col items-center py-7 px-6">
                 <span
                   className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)]"
                   style={{ fontFamily: "var(--font-heading)" }}
@@ -735,7 +735,7 @@ export default function Home() {
       </section>
 
       {/* ── CTA Banner ── */}
-      <section className="py-24 bg-[var(--luxe-navy)]" style={{ borderTop: "1px solid rgba(201,168,76,0.2)" }}>
+      <section className="py-24" style={{ background: "linear-gradient(135deg, #0A1628 0%, #1A2F45 100%)", borderTop: "1px solid rgba(201,168,76,0.2)" }}>
         <div className="container mx-auto text-center">
           <h2
             className="text-3xl md:text-5xl font-bold text-white mb-6"

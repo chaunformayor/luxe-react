@@ -140,7 +140,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1">{children}</main>
 
       {/* Footer */}
-      <footer className="bg-[var(--luxe-navy)] text-white">
+      <footer className="bg-[#070F1A] text-white">
         <div className="container mx-auto py-16">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
             {/* Company Info */}
