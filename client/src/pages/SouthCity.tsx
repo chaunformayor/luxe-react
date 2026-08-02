@@ -1,6 +1,7 @@
 import NeighborhoodTemplate, { NeighborhoodData } from "@/components/NeighborhoodTemplate";
 
 const data: NeighborhoodData = {
+  slug: "south-city",
   badge: "SOUTH CITY & SOUTH COUNTY, ST. LOUIS",
   headline: "Property Management in",
   headlineGold: "South City & South County",

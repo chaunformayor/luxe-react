@@ -1,6 +1,7 @@
 import NeighborhoodTemplate, { NeighborhoodData } from "@/components/NeighborhoodTemplate";
 
 const data: NeighborhoodData = {
+  slug: "webster-groves",
   badge: "WEBSTER GROVES, MO",
   headline: "Property Management in",
   headlineGold: "Webster Groves, Missouri",

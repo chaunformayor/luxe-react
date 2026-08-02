@@ -1,6 +1,7 @@
 import NeighborhoodTemplate, { NeighborhoodData } from "@/components/NeighborhoodTemplate";
 
 const data: NeighborhoodData = {
+  slug: "kirkwood",
   badge: "KIRKWOOD, MO",
   headline: "Property Management in",
   headlineGold: "Kirkwood, Missouri",

@@ -1,6 +1,7 @@
 import NeighborhoodTemplate, { NeighborhoodData } from "@/components/NeighborhoodTemplate";
 
 const data: NeighborhoodData = {
+  slug: "north-county",
   badge: "NORTH COUNTY, ST. LOUIS, MO",
   headline: "Property Management in",
   headlineGold: "North County, St. Louis",

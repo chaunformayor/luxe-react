@@ -1,6 +1,7 @@
 import NeighborhoodTemplate, { NeighborhoodData } from "@/components/NeighborhoodTemplate";
 
 const data: NeighborhoodData = {
+  slug: "st-charles",
   badge: "ST. CHARLES COUNTY, MO",
   headline: "Property Management in",
   headlineGold: "St. Charles County",
