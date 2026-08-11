@@ -30,5 +30,12 @@
       "tag": "0003_free_scarecrow",
       "breakpoints": true
     }
+    ,{
+      "idx": 4,
+      "version": "5",
+      "when": 1786493000000,
+      "tag": "0004_blog_posts",
+      "breakpoints": true
+    }
   ]
 }

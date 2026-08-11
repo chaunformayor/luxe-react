@@ -275,6 +275,24 @@ export const rentalApplications = mysqlTable("rentalApplications", {
 export type RentalApplication = typeof rentalApplications.$inferSelect;
 export type InsertRentalApplication = typeof rentalApplications.$inferInsert;
 
+// Blog Posts table
+export const blogPosts = mysqlTable("blogPosts", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 255 }).notNull(),
+  excerpt: text("excerpt"),
+  body: text("body").notNull(),
+  coverImageUrl: text("coverImageUrl"),
+  category: varchar("category", { length: 100 }),
+  status: mysqlEnum("status", ["draft", "published"]).default("draft"),
+  publishedAt: timestamp("publishedAt"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = typeof blogPosts.$inferInsert;
+
 // Notifications table
 export const notifications = mysqlTable("notifications", {
   id: varchar("id", { length: 64 }).primaryKey(),

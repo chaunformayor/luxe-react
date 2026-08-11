@@ -34,6 +34,7 @@ import OwnerLogin from "@/pages/OwnerLogin";
 import TenantLogin from "@/pages/TenantLogin";
 import Apply from "@/pages/Apply";
 import AdminApplications from "@/pages/AdminApplications";
+import AdminBlog from "@/pages/AdminBlog";
 import Vouchers from "@/pages/Vouchers";
 import Blog from "@/pages/Blog";
 import NorthCounty from "@/pages/NorthCounty";
@@ -69,6 +70,7 @@ function App() {
             <Route path={"/admin/payments"} component={AdminPayments} />
             <Route path={"/admin/users"} component={AdminUsers} />
             <Route path={"/admin/applications"} component={AdminApplications} />
+            <Route path={"/admin/blog"} component={AdminBlog} />
             
             {/* Owner Routes */}
             <Route path={"/owner"} component={OwnerDashboard} />

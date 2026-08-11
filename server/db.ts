@@ -107,7 +107,8 @@ import {
   invoices,
   subscriptions,
   documents,
-  rentalApplications
+  rentalApplications,
+  blogPosts,
 } from "../drizzle/schema";
 import { count, sum, and, gte, lte } from "drizzle-orm";
 
@@ -946,6 +947,80 @@ export async function getAllRentalApplications() {
   if (!db) return [];
 
   return await db.select().from(rentalApplications).orderBy(rentalApplications.createdAt);
+}
+
+// ============ BLOG QUERIES ============
+
+export async function getAllBlogPosts() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(blogPosts).orderBy(blogPosts.createdAt);
+}
+
+export async function getPublishedBlogPosts() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(blogPosts).where(eq(blogPosts.status, "published")).orderBy(blogPosts.publishedAt);
+}
+
+export async function getBlogPostById(id: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function createBlogPost(data: {
+  title: string;
+  slug: string;
+  excerpt?: string;
+  body: string;
+  coverImageUrl?: string;
+  category?: string;
+  status: "draft" | "published";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const id = `blog_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(blogPosts).values({
+    id,
+    title: data.title,
+    slug: data.slug,
+    excerpt: data.excerpt ?? null,
+    body: data.body,
+    coverImageUrl: data.coverImageUrl ?? null,
+    category: data.category ?? null,
+    status: data.status,
+    publishedAt: data.status === "published" ? new Date() : null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return id;
+}
+
+export async function updateBlogPost(id: string, data: Partial<{
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  body: string;
+  coverImageUrl: string | null;
+  category: string | null;
+  status: "draft" | "published";
+  publishedAt: Date | null;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const updateData: Record<string, unknown> = { ...data, updatedAt: new Date() };
+  if (data.status === "published" && !data.publishedAt) {
+    updateData.publishedAt = new Date();
+  }
+  await db.update(blogPosts).set(updateData).where(eq(blogPosts.id, id));
+}
+
+export async function deleteBlogPost(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(blogPosts).where(eq(blogPosts.id, id));
 }
 
 export async function getTenantStats(tenantId: string) {

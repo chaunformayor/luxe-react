@@ -33,6 +33,11 @@ import {
   getUnitsByProperty,
   createInvoice,
   getAllInvoices,
+  getAllBlogPosts,
+  getBlogPostById,
+  createBlogPost,
+  updateBlogPost,
+  deleteBlogPost,
 } from "./db";
 import { hashPassword } from "./authRoutes";
 import { sendOwnerWelcomeEmail, sendTestEmail } from "./email";
@@ -396,6 +401,56 @@ export const adminRouter = router({
     .input(z.string())
     .mutation(async ({ input }) => {
       await updatePayment(input, { status: "completed" });
+      return { success: true };
+    }),
+
+  // Blog Posts
+  getBlogPosts: adminProcedure.query(async () => {
+    return await getAllBlogPosts();
+  }),
+
+  getBlogPost: adminProcedure
+    .input(z.string())
+    .query(async ({ input }) => {
+      return await getBlogPostById(input);
+    }),
+
+  createBlogPost: adminProcedure
+    .input(z.object({
+      title: z.string().min(1),
+      slug: z.string().min(1),
+      excerpt: z.string().optional(),
+      body: z.string().min(1),
+      coverImageUrl: z.string().optional(),
+      category: z.string().optional(),
+      status: z.enum(["draft", "published"]),
+    }))
+    .mutation(async ({ input }) => {
+      const id = await createBlogPost(input);
+      return { id, success: true };
+    }),
+
+  updateBlogPost: adminProcedure
+    .input(z.object({
+      id: z.string(),
+      title: z.string().min(1).optional(),
+      slug: z.string().min(1).optional(),
+      excerpt: z.string().nullable().optional(),
+      body: z.string().min(1).optional(),
+      coverImageUrl: z.string().nullable().optional(),
+      category: z.string().nullable().optional(),
+      status: z.enum(["draft", "published"]).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...data } = input;
+      await updateBlogPost(id, data as any);
+      return { success: true };
+    }),
+
+  deleteBlogPost: adminProcedure
+    .input(z.string())
+    .mutation(async ({ input }) => {
+      await deleteBlogPost(input);
       return { success: true };
     }),
 

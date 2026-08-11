@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 const featured = {
   category: "Market Update",
@@ -70,7 +71,28 @@ const categoryColor: Record<string, string> = {
   "Tenant Management": "bg-red-100 text-red-800",
 };
 
+type DbPost = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  coverImageUrl: string | null;
+  category: string | null;
+  publishedAt: string | Date | null;
+  createdAt: string | Date | null;
+};
+
+function formatDate(d: string | Date | null) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
 export default function Blog() {
+  const { data: dbPosts = [] } = trpc.blog.getPosts.useQuery();
+
+  const dbFeatured = (dbPosts as DbPost[])[0] ?? null;
+  const dbGrid = (dbPosts as DbPost[]).slice(1);
+
   return (
     <div>
       {/* ── Hero ── */}
@@ -94,7 +116,73 @@ export default function Blog() {
         </div>
       </section>
 
-      {/* ── Featured Post ── */}
+      {/* ── DB Posts (dynamic) ── */}
+      {dbPosts.length > 0 && (
+        <section className="py-16 bg-white border-b border-gray-100">
+          <div className="container mx-auto">
+            {dbFeatured && (
+              <>
+                <p className="text-[var(--luxe-gold)] text-xs font-bold tracking-[4px] uppercase mb-8 flex items-center gap-3">
+                  <span className="w-8 h-0.5 bg-[var(--luxe-gold)] inline-block" />
+                  Latest Article
+                </p>
+                <div className="grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all mb-14">
+                  <div className="h-64 lg:h-auto min-h-[280px] bg-[var(--luxe-navy)] relative flex items-center justify-center overflow-hidden">
+                    {dbFeatured.coverImageUrl ? (
+                      <img src={dbFeatured.coverImageUrl} alt={dbFeatured.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                    ) : (
+                      <svg className="w-20 h-20 text-[var(--luxe-gold)]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="p-10 lg:p-12 flex flex-col justify-center bg-white">
+                    {dbFeatured.category && (
+                      <span className={`inline-block text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full mb-4 w-fit ${categoryColor[dbFeatured.category] || "bg-gray-100 text-gray-700"}`}>
+                        {dbFeatured.category}
+                      </span>
+                    )}
+                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--luxe-navy)] mb-4 leading-snug" style={{ fontFamily: "var(--font-heading)" }}>
+                      {dbFeatured.title}
+                    </h2>
+                    {dbFeatured.excerpt && <p className="text-gray-500 leading-relaxed mb-6 text-sm">{dbFeatured.excerpt}</p>}
+                    <span className="text-xs text-gray-400">{formatDate(dbFeatured.publishedAt ?? dbFeatured.createdAt)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+            {dbGrid.length > 0 && (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {dbGrid.map((post) => (
+                  <div key={post.id} className="group bg-[var(--luxe-light)] rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-lg transition-all">
+                    <div className="h-48 bg-[var(--luxe-navy)]/90 flex items-center justify-center overflow-hidden relative">
+                      {post.coverImageUrl ? (
+                        <img src={post.coverImageUrl} alt={post.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                      ) : (
+                        <svg className="w-12 h-12 text-[var(--luxe-gold)]/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="p-6">
+                      {post.category && (
+                        <span className={`inline-block text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-full mb-3 ${categoryColor[post.category] || "bg-gray-100 text-gray-700"}`}>
+                          {post.category}
+                        </span>
+                      )}
+                      <h3 className="font-bold text-[var(--luxe-navy)] mb-3 leading-snug" style={{ fontFamily: "var(--font-heading)" }}>{post.title}</h3>
+                      {post.excerpt && <p className="text-gray-500 text-sm leading-relaxed mb-5">{post.excerpt}</p>}
+                      <span className="text-xs text-gray-400">{formatDate(post.publishedAt ?? post.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Featured Post (static fallback) ── */}
       <section className="py-16 bg-white">
         <div className="container mx-auto">
           <p className="text-[var(--luxe-gold)] text-xs font-bold tracking-[4px] uppercase mb-8 flex items-center gap-3">
