@@ -7,7 +7,7 @@ import { adminRouter } from "./adminRouter";
 import { ownerRouter } from "./ownerRouter";
 import { tenantRouter } from "./tenantRouter";
 import { applicationRouter } from "./applicationRouter";
-import { createInquiry, getPublishedBlogPosts } from "./db";
+import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendContactNotificationEmail } from "./email";
 
@@ -32,6 +32,9 @@ export const appRouter = router({
   blog: router({
     getPosts: publicProcedure.query(async () => {
       return await getPublishedBlogPosts();
+    }),
+    getPost: publicProcedure.input(z.string()).query(async ({ input }) => {
+      return await getPublishedBlogPostBySlug(input);
     }),
   }),
 

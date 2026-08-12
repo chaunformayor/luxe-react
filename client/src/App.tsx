@@ -35,6 +35,7 @@ import TenantLogin from "@/pages/TenantLogin";
 import Apply from "@/pages/Apply";
 import AdminApplications from "@/pages/AdminApplications";
 import AdminBlog from "@/pages/AdminBlog";
+import BlogPost from "@/pages/BlogPost";
 import Vouchers from "@/pages/Vouchers";
 import Blog from "@/pages/Blog";
 import NorthCounty from "@/pages/NorthCounty";
@@ -123,6 +124,9 @@ function App() {
               <Layout>
                 <Blog />
               </Layout>
+            </Route>
+            <Route path={"/blog/:slug"}>
+              <BlogPost />
             </Route>
             <Route path={"/neighborhoods/north-county"}>
               <Layout>

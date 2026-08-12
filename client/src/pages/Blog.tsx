@@ -126,35 +126,40 @@ export default function Blog() {
                   <span className="w-8 h-0.5 bg-[var(--luxe-gold)] inline-block" />
                   Latest Article
                 </p>
-                <div className="grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all mb-14">
-                  <div className="h-64 lg:h-auto min-h-[280px] bg-[var(--luxe-navy)] relative flex items-center justify-center overflow-hidden">
-                    {dbFeatured.coverImageUrl ? (
-                      <img src={dbFeatured.coverImageUrl} alt={dbFeatured.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
-                    ) : (
-                      <svg className="w-20 h-20 text-[var(--luxe-gold)]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                      </svg>
-                    )}
+                <Link href={`/blog/${dbFeatured.slug}`} className="block group">
+                  <div className="grid lg:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all mb-14">
+                    <div className="h-64 lg:h-auto min-h-[280px] bg-[var(--luxe-navy)] relative flex items-center justify-center overflow-hidden">
+                      {dbFeatured.coverImageUrl ? (
+                        <img src={dbFeatured.coverImageUrl} alt={dbFeatured.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                      ) : (
+                        <svg className="w-20 h-20 text-[var(--luxe-gold)]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="p-10 lg:p-12 flex flex-col justify-center bg-white">
+                      {dbFeatured.category && (
+                        <span className={`inline-block text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full mb-4 w-fit ${categoryColor[dbFeatured.category] || "bg-gray-100 text-gray-700"}`}>
+                          {dbFeatured.category}
+                        </span>
+                      )}
+                      <h2 className="text-2xl md:text-3xl font-bold text-[var(--luxe-navy)] mb-4 leading-snug group-hover:text-[var(--luxe-gold)] transition-colors" style={{ fontFamily: "var(--font-heading)" }}>
+                        {dbFeatured.title}
+                      </h2>
+                      {dbFeatured.excerpt && <p className="text-gray-500 leading-relaxed mb-6 text-sm">{dbFeatured.excerpt}</p>}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400">{formatDate(dbFeatured.publishedAt ?? dbFeatured.createdAt)}</span>
+                        <span className="text-sm font-semibold text-[var(--luxe-gold)] group-hover:translate-x-1 transition-transform inline-block">Read Article →</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-10 lg:p-12 flex flex-col justify-center bg-white">
-                    {dbFeatured.category && (
-                      <span className={`inline-block text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full mb-4 w-fit ${categoryColor[dbFeatured.category] || "bg-gray-100 text-gray-700"}`}>
-                        {dbFeatured.category}
-                      </span>
-                    )}
-                    <h2 className="text-2xl md:text-3xl font-bold text-[var(--luxe-navy)] mb-4 leading-snug" style={{ fontFamily: "var(--font-heading)" }}>
-                      {dbFeatured.title}
-                    </h2>
-                    {dbFeatured.excerpt && <p className="text-gray-500 leading-relaxed mb-6 text-sm">{dbFeatured.excerpt}</p>}
-                    <span className="text-xs text-gray-400">{formatDate(dbFeatured.publishedAt ?? dbFeatured.createdAt)}</span>
-                  </div>
-                </div>
+                </Link>
               </>
             )}
             {dbGrid.length > 0 && (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {dbGrid.map((post) => (
-                  <div key={post.id} className="group bg-[var(--luxe-light)] rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-lg transition-all">
+                  <Link key={post.id} href={`/blog/${post.slug}`} className="group block bg-[var(--luxe-light)] rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-lg transition-all">
                     <div className="h-48 bg-[var(--luxe-navy)]/90 flex items-center justify-center overflow-hidden relative">
                       {post.coverImageUrl ? (
                         <img src={post.coverImageUrl} alt={post.title} className="absolute inset-0 w-full h-full object-cover opacity-80" />
@@ -170,11 +175,14 @@ export default function Blog() {
                           {post.category}
                         </span>
                       )}
-                      <h3 className="font-bold text-[var(--luxe-navy)] mb-3 leading-snug" style={{ fontFamily: "var(--font-heading)" }}>{post.title}</h3>
+                      <h3 className="font-bold text-[var(--luxe-navy)] mb-3 leading-snug group-hover:text-[var(--luxe-gold)] transition-colors" style={{ fontFamily: "var(--font-heading)" }}>{post.title}</h3>
                       {post.excerpt && <p className="text-gray-500 text-sm leading-relaxed mb-5">{post.excerpt}</p>}
-                      <span className="text-xs text-gray-400">{formatDate(post.publishedAt ?? post.createdAt)}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400">{formatDate(post.publishedAt ?? post.createdAt)}</span>
+                        <span className="text-xs font-semibold text-[var(--luxe-gold)] group-hover:translate-x-1 transition-transform inline-block">Read →</span>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
