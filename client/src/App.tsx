@@ -44,6 +44,7 @@ import Kirkwood from "@/pages/Kirkwood";
 import WebsterGroves from "@/pages/WebsterGroves";
 import SouthCity from "@/pages/SouthCity";
 import Neighborhoods from "@/pages/Neighborhoods";
+import ScrollToTop from "@/components/ScrollToTop";
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
+          <ScrollToTop />
           <Switch>
             {/* Login Routes */}
             <Route path={"/login"} component={TenantLogin} />
