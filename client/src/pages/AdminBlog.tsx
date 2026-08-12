@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { PlusCircle, Edit2, Trash2, Eye, EyeOff, ArrowLeft, Upload, X, Image } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, Eye, EyeOff, ArrowLeft, Upload, X, Image, ImagePlus } from "lucide-react";
 
 const CATEGORIES = [
   "Market Update",
@@ -77,7 +77,13 @@ export default function AdminBlog() {
   const [imgError, setImgError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [imgPanel, setImgPanel] = useState(false);
+  const [imgInsertUrl, setImgInsertUrl] = useState("");
+  const [imgInsertUploading, setImgInsertUploading] = useState(false);
+  const [imgInsertError, setImgInsertError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const inlineFileRef = useRef<HTMLInputElement>(null);
   const utils = trpc.useUtils();
 
   const { data: posts = [], isLoading } = trpc.admin.getBlogPosts.useQuery();
@@ -153,6 +159,34 @@ export default function AdminBlog() {
       updateMutation.mutate({ id: editId, ...payload });
     } else {
       createMutation.mutate(payload);
+    }
+  };
+
+  const insertImageAtCursor = (url: string) => {
+    const ta = bodyRef.current;
+    if (!ta || !url.trim()) return;
+    const tag = `\n<img src="${url.trim()}" alt="" style="max-width:100%;border-radius:8px;margin:24px 0;display:block;">\n`;
+    const start = ta.selectionStart ?? ta.value.length;
+    const newBody = ta.value.slice(0, start) + tag + ta.value.slice(start);
+    setForm(prev => ({ ...prev, body: newBody }));
+    setImgPanel(false);
+    setImgInsertUrl("");
+    setImgInsertError(null);
+  };
+
+  const handleInlineUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImgInsertError(null);
+    setImgInsertUploading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      insertImageAtCursor(dataUrl);
+    } catch (err: any) {
+      setImgInsertError(err.message);
+    } finally {
+      setImgInsertUploading(false);
+      if (inlineFileRef.current) inlineFileRef.current.value = "";
     }
   };
 
@@ -322,15 +356,66 @@ export default function AdminBlog() {
 
               {/* Body */}
               <div>
-                <label className={labelCls}>Content / Body *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className={labelCls} style={{ marginBottom: 0 }}>Content / Body *</label>
+                  <button
+                    type="button"
+                    onClick={() => { setImgPanel(p => !p); setImgInsertUrl(""); setImgInsertError(null); }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 px-2.5 py-1 rounded-md border border-yellow-200 transition-colors"
+                  >
+                    <ImagePlus size={13} /> Insert Image
+                  </button>
+                </div>
+
+                {/* Inline image panel */}
+                {imgPanel && (
+                  <div className="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg space-y-2">
+                    <p className="text-xs font-semibold text-yellow-700">Insert image at cursor position</p>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 border border-gray-200 rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                        placeholder="Paste image URL (https://...)"
+                        value={imgInsertUrl}
+                        onChange={e => setImgInsertUrl(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && insertImageAtCursor(imgInsertUrl)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => insertImageAtCursor(imgInsertUrl)}
+                        disabled={!imgInsertUrl.trim()}
+                        className="px-3 py-1.5 text-xs font-semibold bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:opacity-40 transition-colors"
+                      >
+                        Insert
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">or</span>
+                      <input ref={inlineFileRef} type="file" accept="image/*" className="hidden" onChange={handleInlineUpload} />
+                      <button
+                        type="button"
+                        onClick={() => inlineFileRef.current?.click()}
+                        disabled={imgInsertUploading}
+                        className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 rounded-md px-2.5 py-1.5 hover:bg-white transition-colors disabled:opacity-50"
+                      >
+                        <Upload size={11} /> {imgInsertUploading ? "Uploading..." : "Upload from computer"}
+                      </button>
+                      <button type="button" onClick={() => setImgPanel(false)} className="ml-auto text-gray-400 hover:text-gray-600">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    {imgInsertError && <p className="text-xs text-red-500">{imgInsertError}</p>}
+                  </div>
+                )}
+
                 <textarea
+                  ref={bodyRef}
                   className={`${inputCls} resize-y font-mono text-xs leading-relaxed`}
                   rows={18}
                   value={form.body}
                   onChange={set("body")}
                   placeholder="Write your blog post here. You can use plain text or HTML..."
                 />
-                <p className="text-xs text-gray-400 mt-1">Tip: You can use basic HTML tags like &lt;p&gt;, &lt;b&gt;, &lt;ul&gt;, &lt;img src="..."&gt;</p>
+                <p className="text-xs text-gray-400 mt-1">Supports HTML: &lt;p&gt;, &lt;b&gt;, &lt;ul&gt;, &lt;h2&gt;, &lt;img&gt;, .blog-stat-grid, .blog-callout</p>
               </div>
             </div>
 
