@@ -88,7 +88,7 @@ export default function HeroSlider() {
             backgroundSize: "60px 60px"
           }} />
 
-          <div className="relative z-20 h-full flex items-center px-6 md:px-12 lg:px-20">
+          <div className="relative z-20 h-full flex items-center px-6 md:px-12 lg:px-20 pt-[72px]">
             <div className="max-w-3xl">
               <p className="text-[var(--luxe-gold)] text-xs font-medium tracking-[4px] uppercase mb-6">
                 {slide.eyebrow}
