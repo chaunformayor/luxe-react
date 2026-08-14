@@ -1,40 +1,19 @@
-const MAILEROO_ENDPOINT = "https://smtp.maileroo.com/api/v2/emails";
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+
 const FROM_NAME = "Luxe Property Solutions";
 
-function getFromEmail() {
-  return process.env.MAILEROO_FROM_EMAIL || "noreply@luxestl.com";
+function getSESClient() {
+  return new SESv2Client({
+    region: process.env.AWS_REGION || "us-east-1",
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
 }
 
-async function callMaileroo(apiKey: string, opts: {
-  to: string;
-  toName: string;
-  subject: string;
-  html: string;
-}): Promise<{ success: boolean; status: number; body: any }> {
-  const payload = {
-    from: { address: getFromEmail(), display_name: FROM_NAME },
-    to: [{ address: opts.to, display_name: opts.toName }],
-    subject: opts.subject,
-    html: opts.html,
-  };
-
-  const res = await fetch(MAILEROO_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "X-Api-Key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  let body: any;
-  try {
-    body = await res.json();
-  } catch {
-    body = await res.text().catch(() => "(unreadable)");
-  }
-
-  return { success: res.ok, status: res.status, body };
+function getFromEmail() {
+  return process.env.SES_FROM_EMAIL || "noreply@luxestl.com";
 }
 
 async function sendEmail(opts: {
@@ -43,43 +22,54 @@ async function sendEmail(opts: {
   subject: string;
   html: string;
 }) {
-  const apiKey = process.env.MAILEROO_API_KEY;
-  if (!apiKey) {
-    console.warn("[Email] MAILEROO_API_KEY not set — skipping email");
+  const accessKey = process.env.AWS_ACCESS_KEY_ID;
+  const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (!accessKey || !secretKey) {
+    console.warn("[Email] AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY not set — skipping email");
     return;
   }
 
-  const result = await callMaileroo(apiKey, opts);
-  if (!result.success) {
-    throw new Error(`Maileroo (${result.status}): ${result.body?.message || JSON.stringify(result.body)}`);
-  }
+  const client = getSESClient();
+  const command = new SendEmailCommand({
+    FromEmailAddress: `${FROM_NAME} <${getFromEmail()}>`,
+    Destination: { ToAddresses: [opts.to] },
+    Content: {
+      Simple: {
+        Subject: { Data: opts.subject, Charset: "UTF-8" },
+        Body: { Html: { Data: opts.html, Charset: "UTF-8" } },
+      },
+    },
+  });
+
+  await client.send(command);
 }
 
 export async function sendTestEmail(to: string): Promise<{
-  apiKeySet: boolean;
+  credentialsSet: boolean;
   fromEmail: string;
   to: string;
-  httpStatus?: number;
-  responseBody?: any;
+  region: string;
   error?: string;
 }> {
-  const apiKey = process.env.MAILEROO_API_KEY;
+  const credentialsSet = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
   const fromEmail = getFromEmail();
+  const region = process.env.AWS_REGION || "us-east-1";
 
-  if (!apiKey) {
-    return { apiKeySet: false, fromEmail, to, error: "MAILEROO_API_KEY env var is not set on the server" };
+  if (!credentialsSet) {
+    return { credentialsSet, fromEmail, to, region, error: "AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY env var is not set" };
   }
 
   try {
-    const result = await callMaileroo(apiKey, {
+    await sendEmail({
       to,
       toName: "Luxe Admin",
       subject: "Luxe Property Solutions — Test Email",
-      html: `<p style="font-family:Arial;font-size:15px;">This is a test email from <strong>Luxe Property Solutions</strong>.<br>If you received this, Maileroo is configured correctly.</p>`,
+      html: `<p style="font-family:Arial;font-size:15px;">This is a test email from <strong>Luxe Property Solutions</strong> via AWS SES.<br>If you received this, SES is configured correctly.</p>`,
     });
-    return { apiKeySet: true, fromEmail, to, httpStatus: result.status, responseBody: result.body };
+    return { credentialsSet, fromEmail, to, region };
   } catch (err: any) {
-    return { apiKeySet: true, fromEmail, to, error: err.message };
+    return { credentialsSet, fromEmail, to, region, error: err.message };
   }
 }
 
@@ -123,7 +113,7 @@ export async function sendOwnerWelcomeEmail({
             </div>
             <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">You will be prompted to create a new password on your first login.</p>
             <div style="text-align:center;margin:32px 0;">
-              <a href="https://luxe-react.vercel.app/owner-login"
+              <a href="https://luxestl.com/owner-login"
                  style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:15px;padding:14px 32px;border-radius:6px;text-decoration:none;">
                 Sign In to Owner Portal
               </a>
@@ -192,7 +182,7 @@ export async function sendWelcomeEmail({
             </div>
             <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">You will be prompted to create a new password on your first login.</p>
             <div style="text-align:center;margin:32px 0;">
-              <a href="https://luxe-react.vercel.app/login"
+              <a href="https://luxestl.com/login"
                  style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:15px;padding:14px 32px;border-radius:6px;text-decoration:none;">
                 Sign In to Your Portal
               </a>
