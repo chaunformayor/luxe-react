@@ -7,7 +7,7 @@ import { adminRouter } from "./adminRouter";
 import { ownerRouter } from "./ownerRouter";
 import { tenantRouter } from "./tenantRouter";
 import { applicationRouter } from "./applicationRouter";
-import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug } from "./db";
+import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug, subscribeToNewsletter } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendContactNotificationEmail } from "./email";
 
@@ -36,6 +36,22 @@ export const appRouter = router({
     getPost: publicProcedure.input(z.string()).query(async ({ input }) => {
       return await getPublishedBlogPostBySlug(input);
     }),
+  }),
+
+  newsletter: router({
+    subscribe: publicProcedure
+      .input(z.object({ email: z.string().email("Please enter a valid email address") }))
+      .mutation(async ({ input }) => {
+        try {
+          await subscribeToNewsletter(input.email);
+          return { success: true };
+        } catch (err: any) {
+          if (err?.code === "ER_DUP_ENTRY" || err?.message?.includes("Duplicate")) {
+            return { success: true, alreadySubscribed: true };
+          }
+          throw err;
+        }
+      }),
   }),
 
   contact: router({

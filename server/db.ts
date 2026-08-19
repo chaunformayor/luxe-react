@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, newsletterSubscribers } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1030,6 +1030,20 @@ export async function deleteBlogPost(id: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(blogPosts).where(eq(blogPosts.id, id));
+}
+
+export async function subscribeToNewsletter(email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const id = `ns_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await db.insert(newsletterSubscribers).values({ id, email, createdAt: new Date() });
+  return id;
+}
+
+export async function getNewsletterSubscribers() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(newsletterSubscribers).orderBy(newsletterSubscribers.createdAt);
 }
 
 export async function getTenantStats(tenantId: string) {

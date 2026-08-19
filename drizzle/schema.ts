@@ -306,3 +306,10 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+export const newsletterSubscribers = mysqlTable("newsletterSubscribers", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
