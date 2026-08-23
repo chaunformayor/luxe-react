@@ -53,28 +53,27 @@ export const appRouter = router({
           // ignore duplicate errors
         }
 
-        // Send to Kit
-        const kitApiSecret = process.env.KIT_API_SECRET;
-        if (kitApiSecret) {
-          const res = await fetch("https://api.kit.com/v4/subscribers", {
+        // Send to Kit via v3 API
+        const kitApiKey = process.env.KIT_API_KEY;
+        if (kitApiKey) {
+          const res = await fetch("https://api.convertkit.com/v3/subscribers", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${kitApiSecret}`,
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              email_address: input.email,
+              api_key: kitApiKey,
+              email: input.email,
               first_name: input.firstName,
               fields: { last_name: input.lastName ?? "" },
-              state: "active",
             }),
           });
           if (!res.ok) {
             const body = await res.text().catch(() => "");
             console.error("[Newsletter] Kit API error:", res.status, body);
+          } else {
+            console.log("[Newsletter] Kit subscriber created:", input.email);
           }
         } else {
-          console.warn("[Newsletter] KIT_API_SECRET not set — subscriber saved to DB only");
+          console.warn("[Newsletter] KIT_API_KEY not set — subscriber saved to DB only");
         }
 
         return { success: true };
