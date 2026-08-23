@@ -61,7 +61,6 @@ export const appRouter = router({
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${kitApiSecret}`,
-              "X-Kit-Api-Key": kitApiSecret,
             },
             body: JSON.stringify({
               email_address: input.email,
