@@ -56,7 +56,7 @@ export const appRouter = router({
         // Send to Kit via v3 API
         const kitApiKey = process.env.KIT_API_KEY;
         if (kitApiKey) {
-          const res = await fetch("https://api.convertkit.com/v3/subscribers", {
+          const res = await fetch("https://api.convertkit.com/v3/forms/9821464/subscribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
