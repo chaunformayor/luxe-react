@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 
@@ -27,21 +27,72 @@ function formatDate(d: string | Date | null) {
   return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
-function KitForm() {
-  const containerRef = useRef<HTMLDivElement>(null);
+function NewsletterForm() {
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "" });
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
 
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://luxe-property-solutions.kit.com/ed3ba9b448/index.js";
-    script.setAttribute("data-uid", "ed3ba9b448");
-    script.async = true;
-    containerRef.current?.appendChild(script);
-    return () => {
-      script.remove();
-    };
-  }, []);
+  const subscribe = trpc.newsletter.subscribe.useMutation({
+    onSuccess: () => { setStatus("success"); setForm({ firstName: "", lastName: "", email: "" }); },
+    onError: () => setStatus("error"),
+  });
 
-  return <div ref={containerRef} className="max-w-lg mx-auto" />;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("idle");
+    subscribe.mutate({ firstName: form.firstName, lastName: form.lastName, email: form.email });
+  };
+
+  if (status === "success") {
+    return (
+      <div className="text-center">
+        <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white px-8 py-4 rounded-sm text-sm font-medium">
+          ✓ You're subscribed! We'll be in touch.
+        </div>
+      </div>
+    );
+  }
+
+  const inputCls = "w-full px-4 py-3 bg-white/10 border border-white/20 text-white placeholder-white/40 text-sm rounded-sm focus:outline-none focus:border-[var(--luxe-gold)] focus:bg-white/15 transition-colors";
+
+  return (
+    <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          type="text"
+          placeholder="First name"
+          required
+          value={form.firstName}
+          onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
+          className={inputCls}
+        />
+        <input
+          type="text"
+          placeholder="Last name"
+          value={form.lastName}
+          onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
+          className={inputCls}
+        />
+      </div>
+      <input
+        type="email"
+        placeholder="Email address"
+        required
+        value={form.email}
+        onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+        className={inputCls}
+      />
+      <button
+        type="submit"
+        disabled={subscribe.isPending}
+        className="w-full py-3 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold text-sm uppercase tracking-widest rounded-sm hover:bg-[var(--luxe-gold)]/90 transition-colors disabled:opacity-60"
+      >
+        {subscribe.isPending ? "Subscribing..." : "Subscribe"}
+      </button>
+      {status === "error" && (
+        <p className="text-red-300 text-xs text-center">Something went wrong. Please try again.</p>
+      )}
+    </form>
+  );
 }
 
 export default function Blog() {
@@ -172,7 +223,7 @@ export default function Blog() {
             Monthly St. Louis market data, investment opportunities, and property management insights —
             no spam, no fluff.
           </p>
-          <KitForm />
+          <NewsletterForm />
         </div>
       </section>
     </div>

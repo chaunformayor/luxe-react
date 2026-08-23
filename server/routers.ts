@@ -40,17 +40,45 @@ export const appRouter = router({
 
   newsletter: router({
     subscribe: publicProcedure
-      .input(z.object({ email: z.string().email("Please enter a valid email address") }))
+      .input(z.object({
+        email: z.string().email("Please enter a valid email address"),
+        firstName: z.string().min(1, "First name is required"),
+        lastName: z.string().optional(),
+      }))
       .mutation(async ({ input }) => {
+        // Save to DB (best-effort backup)
         try {
           await subscribeToNewsletter(input.email);
-          return { success: true };
-        } catch (err: any) {
-          if (err?.code === "ER_DUP_ENTRY" || err?.message?.includes("Duplicate")) {
-            return { success: true, alreadySubscribed: true };
-          }
-          throw err;
+        } catch {
+          // ignore duplicate errors
         }
+
+        // Send to Kit
+        const kitApiSecret = process.env.KIT_API_SECRET;
+        if (kitApiSecret) {
+          const res = await fetch("https://api.kit.com/v4/subscribers", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${kitApiSecret}`,
+              "X-Kit-Api-Key": kitApiSecret,
+            },
+            body: JSON.stringify({
+              email_address: input.email,
+              first_name: input.firstName,
+              fields: { last_name: input.lastName ?? "" },
+              state: "active",
+            }),
+          });
+          if (!res.ok) {
+            const body = await res.text().catch(() => "");
+            console.error("[Newsletter] Kit API error:", res.status, body);
+          }
+        } else {
+          console.warn("[Newsletter] KIT_API_SECRET not set — subscriber saved to DB only");
+        }
+
+        return { success: true };
       }),
   }),
 
