@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 
@@ -27,59 +27,21 @@ function formatDate(d: string | Date | null) {
   return new Date(d).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
-function NewsletterForm() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "success" | "duplicate" | "error">("idle");
-  const subscribe = trpc.newsletter.subscribe.useMutation({
-    onSuccess: (data) => {
-      setStatus(data.alreadySubscribed ? "duplicate" : "success");
-      setEmail("");
-    },
-    onError: () => setStatus("error"),
-  });
+function KitForm() {
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setStatus("idle");
-    subscribe.mutate({ email });
-  };
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://luxe-property-solutions.kit.com/ed3ba9b448/index.js";
+    script.setAttribute("data-uid", "ed3ba9b448");
+    script.async = true;
+    containerRef.current?.appendChild(script);
+    return () => {
+      script.remove();
+    };
+  }, []);
 
-  if (status === "success") {
-    return (
-      <div className="text-center">
-        <div className="inline-flex items-center gap-2 bg-white/10 text-white px-6 py-3 rounded-full text-sm font-medium">
-          ✓ You're subscribed! We'll send market updates your way.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-      <input
-        type="email"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        placeholder="Enter your email address"
-        required
-        className="flex-1 px-4 py-3 rounded-sm text-[var(--luxe-navy)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--luxe-gold)]"
-      />
-      <button
-        type="submit"
-        disabled={subscribe.isPending}
-        className="px-6 py-3 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold text-sm uppercase tracking-wide rounded-sm hover:bg-[var(--luxe-gold)]/90 transition-colors disabled:opacity-60 whitespace-nowrap"
-      >
-        {subscribe.isPending ? "Subscribing..." : "Subscribe"}
-      </button>
-      {status === "duplicate" && (
-        <p className="text-white/70 text-xs mt-2 text-center w-full">You're already subscribed!</p>
-      )}
-      {status === "error" && (
-        <p className="text-red-300 text-xs mt-2 text-center w-full">Something went wrong. Please try again.</p>
-      )}
-    </form>
-  );
+  return <div ref={containerRef} className="max-w-lg mx-auto" />;
 }
 
 export default function Blog() {
@@ -210,7 +172,7 @@ export default function Blog() {
             Monthly St. Louis market data, investment opportunities, and property management insights —
             no spam, no fluff.
           </p>
-          <NewsletterForm />
+          <KitForm />
         </div>
       </section>
     </div>
