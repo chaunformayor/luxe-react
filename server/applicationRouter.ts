@@ -82,6 +82,23 @@ const applicationInputSchema = z.object({
   // Occupants
   additionalOccupants: z.array(occupantSchema).optional(),
 
+  // Preferences
+  desiredMoveInDate: z.string().optional(),
+  leaseTermPreference: z.string().optional(),
+
+  // Co-applicant
+  coApplicantInfo: z.object({
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+    phone: z.string(),
+    dateOfBirth: z.string(),
+  }).optional(),
+
+  // Documents (base64)
+  idDocumentBase64: z.string().optional(),
+  incomeDocumentBase64: z.string().optional(),
+
   // Pets
   hasPets: z.boolean().default(false),
   petDetails: z.string().optional(),

@@ -245,6 +245,17 @@ export const rentalApplications = mysqlTable("rentalApplications", {
   hasBankruptcy: boolean("hasBankruptcy").default(false),
   bankruptcyDetails: text("bankruptcyDetails"),
 
+  // Preferences
+  desiredMoveInDate: varchar("desiredMoveInDate", { length: 20 }),
+  leaseTermPreference: varchar("leaseTermPreference", { length: 50 }),
+
+  // Co-applicant (JSON)
+  coApplicantInfo: json("coApplicantInfo"),
+
+  // Uploaded documents (base64)
+  idDocumentBase64: text("idDocumentBase64"),
+  incomeDocumentBase64: text("incomeDocumentBase64"),
+
   // Voucher / Housing Assistance
   hasVoucher: boolean("hasVoucher").default(false),
   voucherType: mysqlEnum("voucherType", ["section8_hcv", "vash", "other"]),
