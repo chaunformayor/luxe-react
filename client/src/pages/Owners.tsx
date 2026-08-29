@@ -65,11 +65,11 @@ const plans = [
   {
     id: "starter",
     label: "STARTER",
-    price: "$75",
+    price: "$99",
     period: "/month",
-    tagline: "Leasing Only",
-    desc: "Ideal for owners who want professional tenant placement and move-in coordination, then self-manage.",
-    bullets: ["Market rent analysis", "Professional marketing & showings", "Full tenant screening", "Lease execution", "Move-in coordination"],
+    tagline: "Self-Manage with Support",
+    desc: "$499 one-time placement fee, then $99/month beginning immediately upon signing. Professional infrastructure for hands-on owners.",
+    bullets: ["Market rent analysis", "Professional marketing & showings", "Full tenant screening", "Lease preparation & execution", "Move-in coordination", "Tenant & owner portal access", "Quarterly inspections with photo report", "Emergency maintenance coordination", "Lease renewal reminders", "Document storage"],
     featured: false,
   },
   {
