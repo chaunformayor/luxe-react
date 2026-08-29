@@ -182,8 +182,8 @@ function FileUploadField({ label, value, onChange, note }: { label: string; valu
 
 // ── Payment Step ───────────────────────────────────────────────────────────────
 function PaymentStep({ clientSecret, applicationId, onSuccess, onError }: { clientSecret: string | null; applicationId: string; onSuccess: () => void; onError: (msg: string) => void }) {
-  const stripe = stripePromise ? useStripe() : null;
-  const elements = stripePromise ? useElements() : null;
+  const stripe = useStripe();
+  const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const confirm = trpc.application.confirmPayment.useMutation({ onSuccess, onError: (e) => onError(e.message) });
 
