@@ -44,6 +44,7 @@ import Kirkwood from "@/pages/Kirkwood";
 import WebsterGroves from "@/pages/WebsterGroves";
 import SouthCity from "@/pages/SouthCity";
 import Neighborhoods from "@/pages/Neighborhoods";
+import RentalAnalysis from "@/pages/RentalAnalysis";
 import ScrollToTop from "@/components/ScrollToTop";
 
 function App() {
@@ -157,6 +158,11 @@ function App() {
             </Route>
             <Route path={"/neighborhoods"}>
               <Neighborhoods />
+            </Route>
+            <Route path={"/rental-analysis"}>
+              <Layout>
+                <RentalAnalysis />
+              </Layout>
             </Route>
             <Route path={"/contact"}>
               <Layout>

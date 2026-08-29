@@ -25,7 +25,7 @@ const slides: Slide[] = [
     description:
       "Most property managers can rent your home. We can find it, rehab it, stabilize it, and manage it — all under one roof. No handoffs. No gaps. Just results.",
     cta: "Get a Free Rental Analysis",
-    ctaLink: "/contact",
+    ctaLink: "/rental-analysis",
     ctaSecondary: "View Pricing & Services",
     ctaSecondaryLink: "/services",
   },

@@ -755,7 +755,7 @@ export default function Home() {
             have to wonder what's happening with your investment.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/contact">
+            <Link href="/rental-analysis">
               <span className="inline-block px-10 py-4 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold text-sm uppercase tracking-wide cursor-pointer hover:bg-[var(--luxe-gold)]/90 transition-colors rounded-sm">
                 Get a Free Rental Analysis
               </span>
