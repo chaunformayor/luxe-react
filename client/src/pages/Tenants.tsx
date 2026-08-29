@@ -1,26 +1,36 @@
 import { Link } from "wouter";
-import { Home, Wrench, CreditCard, MessageCircle, CheckCircle, Shield, FileText } from "lucide-react";
+import { Home, Wrench, CreditCard, MessageCircle, CheckCircle, Shield, FileText, PawPrint, Calendar, Clock } from "lucide-react";
 
-const services = [
+const perks = [
   {
     icon: Home,
     title: "Quality Properties",
-    desc: "Access to well-maintained, premium properties in desirable St. Louis neighborhoods — single-family homes, condos, and multi-family units.",
+    desc: "Well-maintained, move-in ready homes across St. Louis — single-family, condos, and multi-family. Every property meets our quality standards before you sign.",
   },
   {
     icon: Wrench,
-    title: "24/7 Maintenance",
-    desc: "Submit maintenance requests online any time. Our team dispatches vetted, licensed contractors fast — including emergency response after hours.",
+    title: "Fast Maintenance",
+    desc: "Submit requests online any time. Our in-house team responds fast — typically same or next business day. Emergency line available 24/7.",
   },
   {
     icon: CreditCard,
     title: "Easy Online Payments",
-    desc: "Pay rent securely through your Tenant Portal. Set up auto-pay, view your payment history, and download receipts — all in one place.",
+    desc: "Pay rent, set up auto-pay, view your history, and download receipts through your Tenant Portal. No checks, no hassle.",
   },
   {
     icon: MessageCircle,
-    title: "Responsive Support",
-    desc: "A real team answers your questions. No voicemail loops. Our leasing and management staff respond within one business day.",
+    title: "Real People, Real Answers",
+    desc: "No voicemail loops. Our leasing and management team responds within one business day — often the same day.",
+  },
+  {
+    icon: PawPrint,
+    title: "Pet Friendly",
+    desc: "We welcome pets. A one-time $150 pet deposit applies. Ask our team about breed or size restrictions on specific properties.",
+  },
+  {
+    icon: Calendar,
+    title: "Flexible Lease Terms",
+    desc: "Standard 12-month leases plus short-term, mid-term, and month-to-month options available on select properties. We work with your situation.",
   },
 ];
 
@@ -43,17 +53,19 @@ const voucherCards = [
     desc: "Our properties are maintained to exceed Housing Quality Standards, making PHA inspections smooth and approvals fast.",
   },
   {
-    icon: CreditCard,
+    icon: Clock,
     title: "PHA Coordination",
     desc: "Our leasing team handles all coordination with your PHA — from the RFTA form to HAP contract execution — so you can focus on your move.",
   },
 ];
 
-const steps = [
-  { num: "01", title: "Browse Properties", desc: "View available rentals on our Properties page. Look for the HCV OK badge on voucher-eligible units." },
-  { num: "02", title: "Submit Application", desc: "Complete our online application in minutes. Include your voucher details in the Voucher section. The $75 fee covers your background and credit check." },
-  { num: "03", title: "PHA Coordination", desc: "Once approved, our team contacts your housing authority to schedule the HQS inspection and execute the HAP contract." },
-  { num: "04", title: "Sign & Move In", desc: "Sign your lease, pay any tenant-share deposit, and get your keys. We'll walk you through everything." },
+const quickReqs = [
+  { label: "Credit Score", value: "580 minimum" },
+  { label: "Income", value: "3× monthly rent" },
+  { label: "Background", value: "No violent felonies" },
+  { label: "Application Fee", value: "$75 per adult" },
+  { label: "Security Deposit", value: "Up to 2 months' rent" },
+  { label: "Pet Deposit", value: "$150 (one-time)" },
 ];
 
 export default function Tenants() {
@@ -67,69 +79,60 @@ export default function Tenants() {
             <span className="mx-2">/</span>
             <span>Tenants</span>
           </p>
-          <h1
-            className="text-5xl md:text-6xl font-bold mb-6"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            For Tenants
+          <h1 className="text-5xl md:text-6xl font-bold mb-6" style={{ fontFamily: "var(--font-heading)" }}>
+            Find Your Next Home
           </h1>
           <p className="text-white/70 text-xl max-w-2xl leading-relaxed">
-            Premium properties. Responsive management. A rental experience that actually feels like home.
-            Housing Choice Vouchers welcome.
+            Premium properties. Responsive management. Flexible lease terms. Housing Choice Vouchers welcome.
+            We make renting straightforward.
           </p>
           <div className="flex flex-wrap gap-4 mt-10">
-            <Link href="/apply">
+            <Link href="/properties">
               <span className="inline-block px-8 py-4 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold text-sm uppercase tracking-wide cursor-pointer hover:bg-[var(--luxe-gold)]/90 transition-colors rounded-sm">
-                Apply Now — $75 Fee
+                View Available Properties
               </span>
             </Link>
-            <Link href="/properties">
+            <Link href="/rental-process">
               <span className="inline-block px-8 py-4 border border-white/30 text-white font-semibold text-sm uppercase tracking-wide cursor-pointer hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-colors rounded-sm">
-                View Properties
+                How It Works
+              </span>
+            </Link>
+            <Link href="/apply">
+              <span className="inline-block px-8 py-4 border border-white/30 text-white font-semibold text-sm uppercase tracking-wide cursor-pointer hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-colors rounded-sm">
+                Apply Now
               </span>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── What We Offer ── */}
+      {/* ── Why Rent With Us ── */}
       <section className="py-24 bg-white">
         <div className="container mx-auto">
           <div className="mb-14">
             <p className="text-[var(--luxe-gold)] text-xs font-bold tracking-[4px] uppercase mb-4 flex items-center gap-3">
               <span className="w-8 h-0.5 bg-[var(--luxe-gold)] inline-block" />
-              Tenant Experience
+              Why Luxe
             </p>
-            <h2
-              className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)] mb-4"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              What We Offer Our Tenants
+            <h2 className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)] mb-4" style={{ fontFamily: "var(--font-heading)" }}>
+              Renting Done Right
             </h2>
             <p className="text-gray-500 text-lg max-w-2xl">
-              We manage properties the way we'd want our own home managed — maintained, responsive, and
-              handled with care.
+              We manage properties the way we'd want our own home managed — well-maintained, responsive, and
+              built around your life, not just the lease.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {services.map((s) => {
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {perks.map((s) => {
               const Icon = s.icon;
               return (
-                <div
-                  key={s.title}
-                  className="flex items-start gap-6 p-8 rounded-xl border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-md transition-all"
-                >
-                  <div className="w-14 h-14 rounded-xl bg-[var(--luxe-navy)] flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-7 h-7 text-[var(--luxe-gold)]" />
+                <div key={s.title} className="flex items-start gap-5 p-7 rounded-xl border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-md transition-all">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--luxe-navy)] flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-6 h-6 text-[var(--luxe-gold)]" />
                   </div>
                   <div>
-                    <h3
-                      className="text-xl font-bold text-[var(--luxe-navy)] mb-2"
-                      style={{ fontFamily: "var(--font-heading)" }}
-                    >
-                      {s.title}
-                    </h3>
+                    <h3 className="text-lg font-bold text-[var(--luxe-navy)] mb-1.5" style={{ fontFamily: "var(--font-heading)" }}>{s.title}</h3>
                     <p className="text-gray-600 leading-relaxed text-sm">{s.desc}</p>
                   </div>
                 </div>
@@ -139,25 +142,50 @@ export default function Tenants() {
         </div>
       </section>
 
+      {/* ── Quick Requirements ── */}
+      <section className="py-20 bg-[var(--luxe-light)]">
+        <div className="container mx-auto">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <p className="text-[var(--luxe-gold)] text-xs font-bold tracking-[4px] uppercase mb-4">At a Glance</p>
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--luxe-navy)] mb-3" style={{ fontFamily: "var(--font-heading)" }}>
+                Basic Rental Requirements
+              </h2>
+              <p className="text-gray-500">We keep our requirements clear and straightforward.</p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+              {quickReqs.map((r) => (
+                <div key={r.label} className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+                  <p className="text-[var(--luxe-gold)] text-xs font-bold uppercase tracking-[2px] mb-2">{r.label}</p>
+                  <p className="text-[var(--luxe-navy)] font-bold text-lg">{r.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="text-center">
+              <Link href="/rental-process">
+                <span className="inline-block px-8 py-4 bg-[var(--luxe-navy)] text-white font-semibold text-sm uppercase tracking-wide cursor-pointer hover:bg-[var(--luxe-navy)]/90 transition-colors rounded-sm">
+                  See Full Process & Requirements →
+                </span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Voucher Section ── */}
       <section className="py-24 bg-[var(--luxe-navy)]">
         <div className="container mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
-            {/* Left */}
             <div>
               <div className="inline-flex items-center gap-2 bg-[var(--luxe-gold)]/20 border border-[var(--luxe-gold)]/40 text-[var(--luxe-gold)] px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
                 <CheckCircle className="w-4 h-4" /> Vouchers Welcome
               </div>
-              <h2
-                className="text-4xl md:text-5xl font-bold text-white mb-6"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6" style={{ fontFamily: "var(--font-heading)" }}>
                 We Accept Housing Choice Vouchers
               </h2>
               <p className="text-white/70 text-lg leading-relaxed mb-6">
-                Luxe Property Solutions proudly works with Housing Choice Voucher (HCV) holders, including
-                Section 8, VASH, and other housing assistance programs. All eligible properties are
-                voucher-ready.
+                Luxe Property Solutions proudly works with HCV holders, including Section 8, VASH, and other
+                housing assistance programs. All eligible properties are voucher-ready.
               </p>
               <ul className="space-y-3 mb-8">
                 {voucherTypes.map((item) => (
@@ -180,8 +208,6 @@ export default function Tenants() {
                 </Link>
               </div>
             </div>
-
-            {/* Right — info cards */}
             <div className="space-y-4">
               {voucherCards.map((c) => {
                 const Icon = c.icon;
@@ -192,12 +218,7 @@ export default function Tenants() {
                         <Icon className="w-5 h-5 text-[var(--luxe-gold)]" />
                       </div>
                       <div>
-                        <h3
-                          className="font-bold text-white mb-1"
-                          style={{ fontFamily: "var(--font-heading)" }}
-                        >
-                          {c.title}
-                        </h3>
+                        <h3 className="font-bold text-white mb-1" style={{ fontFamily: "var(--font-heading)" }}>{c.title}</h3>
                         <p className="text-white/60 text-sm leading-relaxed">{c.desc}</p>
                       </div>
                     </div>
@@ -209,48 +230,7 @@ export default function Tenants() {
         </div>
       </section>
 
-      {/* ── How Voucher Process Works ── */}
-      <section className="py-24 bg-[var(--luxe-light)]">
-        <div className="container mx-auto">
-          <div className="text-center mb-14">
-            <h2
-              className="text-4xl md:text-5xl font-bold text-[var(--luxe-navy)] mb-4"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              How the Voucher Process Works
-            </h2>
-            <div className="w-12 h-0.5 bg-[var(--luxe-gold)] mx-auto mb-4" />
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">
-              We make the HCV process straightforward. Here's what to expect from application to move-in.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {steps.map((s) => (
-              <div
-                key={s.num}
-                className="bg-white rounded-xl p-8 border border-gray-100 hover:border-[var(--luxe-gold)]/40 hover:shadow-md transition-all"
-              >
-                <div
-                  className="text-4xl font-bold text-[var(--luxe-gold)] mb-4"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  {s.num}
-                </div>
-                <h3
-                  className="text-lg font-bold text-[var(--luxe-navy)] mb-3"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  {s.title}
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Tenant Portal CTA ── */}
+      {/* ── Portal CTA ── */}
       <section className="py-16 bg-white">
         <div className="container mx-auto">
           <div className="bg-[var(--luxe-light)] rounded-2xl p-10 md:p-14 border border-gray-100 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -259,14 +239,11 @@ export default function Tenants() {
                 <FileText className="w-8 h-8 text-[var(--luxe-gold)]" />
               </div>
               <div>
-                <h3
-                  className="text-2xl font-bold text-[var(--luxe-navy)] mb-1"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
+                <h3 className="text-2xl font-bold text-[var(--luxe-navy)] mb-1" style={{ fontFamily: "var(--font-heading)" }}>
                   Already a Tenant?
                 </h3>
                 <p className="text-gray-500 text-sm">
-                  Access your Tenant Portal to pay rent, submit maintenance requests, and view your lease documents.
+                  Access your portal to pay rent, submit maintenance requests, and view your lease documents.
                 </p>
               </div>
             </div>
@@ -282,30 +259,27 @@ export default function Tenants() {
       {/* ── CTA ── */}
       <section className="py-24 bg-[var(--luxe-navy)]">
         <div className="container mx-auto text-center">
-          <h2
-            className="text-4xl md:text-5xl font-bold text-white mb-4"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" style={{ fontFamily: "var(--font-heading)" }}>
             Ready to Find Your New Home?
           </h2>
           <p className="text-white/60 text-lg mb-10 max-w-xl mx-auto">
-            Start your application online in minutes. A $75 fee covers processing and your comprehensive
-            background &amp; credit check.
+            Browse our available properties or start your application today. The $75 fee covers processing
+            and your comprehensive background &amp; credit check.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/apply">
-              <span className="inline-block px-10 py-4 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold text-sm uppercase tracking-wide cursor-pointer hover:bg-[var(--luxe-gold)]/90 transition-colors rounded-sm">
-                Apply Now
-              </span>
-            </Link>
             <Link href="/properties">
-              <span className="inline-block px-10 py-4 border border-white/30 text-white font-semibold text-sm uppercase tracking-wide cursor-pointer hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-colors rounded-sm">
+              <span className="inline-block px-10 py-4 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold text-sm uppercase tracking-wide cursor-pointer hover:bg-[var(--luxe-gold)]/90 transition-colors rounded-sm">
                 View Properties
               </span>
             </Link>
-            <Link href="/contact">
+            <Link href="/rental-process">
               <span className="inline-block px-10 py-4 border border-white/30 text-white font-semibold text-sm uppercase tracking-wide cursor-pointer hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-colors rounded-sm">
-                Contact Us
+                How It Works
+              </span>
+            </Link>
+            <Link href="/apply">
+              <span className="inline-block px-10 py-4 border border-white/30 text-white font-semibold text-sm uppercase tracking-wide cursor-pointer hover:border-[var(--luxe-gold)] hover:text-[var(--luxe-gold)] transition-colors rounded-sm">
+                Apply Now
               </span>
             </Link>
           </div>

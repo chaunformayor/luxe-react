@@ -45,6 +45,7 @@ import WebsterGroves from "@/pages/WebsterGroves";
 import SouthCity from "@/pages/SouthCity";
 import Neighborhoods from "@/pages/Neighborhoods";
 import RentalAnalysis from "@/pages/RentalAnalysis";
+import RentalProcess from "@/pages/RentalProcess";
 import ScrollToTop from "@/components/ScrollToTop";
 
 function App() {
@@ -162,6 +163,11 @@ function App() {
             <Route path={"/rental-analysis"}>
               <Layout>
                 <RentalAnalysis />
+              </Layout>
+            </Route>
+            <Route path={"/rental-process"}>
+              <Layout>
+                <RentalProcess />
               </Layout>
             </Route>
             <Route path={"/contact"}>
