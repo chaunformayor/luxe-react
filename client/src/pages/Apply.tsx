@@ -180,23 +180,22 @@ function FileUploadField({ label, value, onChange, note }: { label: string; valu
   );
 }
 
-// ── Payment Step ───────────────────────────────────────────────────────────────
-function PaymentStep({ clientSecret, applicationId, onSuccess, onError }: { clientSecret: string | null; applicationId: string; onSuccess: () => void; onError: (msg: string) => void }) {
+// ── Payment Step (Stripe inner form — only rendered inside <Elements>) ─────────
+function StripeCardForm({ applicationId, clientSecret, onSuccess, onError }: { applicationId: string; clientSecret: string; onSuccess: () => void; onError: (msg: string) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const confirm = trpc.application.confirmPayment.useMutation({ onSuccess, onError: (e) => onError(e.message) });
 
   const handlePay = async () => {
+    if (!stripe || !elements) return;
     setProcessing(true);
     try {
-      if (stripe && elements && clientSecret) {
-        const card = elements.getElement(CardElement);
-        if (!card) throw new Error("Card element not found");
-        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, { payment_method: { card } });
-        if (error) throw new Error(error.message);
-        if (paymentIntent?.status !== "succeeded") throw new Error("Payment did not succeed");
-      }
+      const card = elements.getElement(CardElement);
+      if (!card) throw new Error("Card element not found");
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, { payment_method: { card } });
+      if (error) throw new Error(error.message);
+      if (paymentIntent?.status !== "succeeded") throw new Error("Payment did not succeed");
       await confirm.mutateAsync({ applicationId });
     } catch (err: any) {
       onError(err.message || "Payment failed");
@@ -205,6 +204,54 @@ function PaymentStep({ clientSecret, applicationId, onSuccess, onError }: { clie
     }
   };
 
+  return (
+    <>
+      <div className="space-y-4">
+        <div>
+          <Label required>Card Information</Label>
+          <div className="border rounded-md p-3 bg-white">
+            <CardElement options={{ style: { base: { fontSize: "16px", color: "#1a2744", "::placeholder": { color: "#9ca3af" } } } }} />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 flex items-center gap-1"><span>🔒</span> Encrypted and secure via Stripe.</p>
+      </div>
+      <Button onClick={handlePay} disabled={processing || confirm.isPending || !stripe} className="w-full bg-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/90 text-[var(--luxe-navy)] font-bold text-lg py-6">
+        {processing || confirm.isPending ? "Processing..." : `Pay $${APPLICATION_FEE}.00 & Submit`}
+      </Button>
+    </>
+  );
+}
+
+// ── Demo (no Stripe) payment step ──────────────────────────────────────────────
+function DemoPaymentForm({ applicationId, onSuccess, onError }: { applicationId: string; onSuccess: () => void; onError: (msg: string) => void }) {
+  const [processing, setProcessing] = useState(false);
+  const confirm = trpc.application.confirmPayment.useMutation({ onSuccess, onError: (e) => onError(e.message) });
+
+  const handleSubmit = async () => {
+    setProcessing(true);
+    try {
+      await confirm.mutateAsync({ applicationId });
+    } catch (err: any) {
+      onError(err.message || "Submission failed");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+        <strong>Demo Mode:</strong> Stripe is not configured. Click below to submit without a real charge.
+      </div>
+      <Button onClick={handleSubmit} disabled={processing || confirm.isPending} className="w-full bg-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/90 text-[var(--luxe-navy)] font-bold text-lg py-6">
+        {processing || confirm.isPending ? "Processing..." : "Submit Application"}
+      </Button>
+    </>
+  );
+}
+
+// ── Payment Step wrapper ───────────────────────────────────────────────────────
+function PaymentStep({ clientSecret, applicationId, onSuccess, onError }: { clientSecret: string | null; applicationId: string; onSuccess: () => void; onError: (msg: string) => void }) {
   return (
     <div className="space-y-6">
       <div className="bg-[var(--luxe-navy)]/5 border border-[var(--luxe-navy)]/20 rounded-lg p-5">
@@ -215,23 +262,12 @@ function PaymentStep({ clientSecret, applicationId, onSuccess, onError }: { clie
         <p className="text-xs text-gray-500 mt-1">Non-refundable. Each adult (18+) on the lease must submit a separate application and fee.</p>
       </div>
       {stripePromise && clientSecret ? (
-        <div className="space-y-4">
-          <div>
-            <Label required>Card Information</Label>
-            <div className="border rounded-md p-3 bg-white">
-              <CardElement options={{ style: { base: { fontSize: "16px", color: "#1a2744", "::placeholder": { color: "#9ca3af" } } } }} />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 flex items-center gap-1"><span>🔒</span> Encrypted and secure via Stripe.</p>
-        </div>
+        <Elements stripe={stripePromise} options={{ clientSecret }}>
+          <StripeCardForm applicationId={applicationId} clientSecret={clientSecret} onSuccess={onSuccess} onError={onError} />
+        </Elements>
       ) : (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-          <strong>Demo Mode:</strong> Stripe is not configured. Click below to submit without a real charge.
-        </div>
+        <DemoPaymentForm applicationId={applicationId} onSuccess={onSuccess} onError={onError} />
       )}
-      <Button onClick={handlePay} disabled={processing || confirm.isPending} className="w-full bg-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/90 text-[var(--luxe-navy)] font-bold text-lg py-6">
-        {processing || confirm.isPending ? "Processing..." : stripePromise ? `Pay $${APPLICATION_FEE}.00 & Submit` : "Submit Application"}
-      </Button>
     </div>
   );
 }
@@ -336,9 +372,6 @@ export default function Apply() {
       </Layout>
     );
   }
-
-  const paymentStep = <PaymentStep clientSecret={clientSecret} applicationId={applicationId!} onSuccess={() => setSubmitted(true)} onError={(msg) => setError(msg)} />;
-  const wrappedPaymentStep = stripePromise && clientSecret ? <Elements stripe={stripePromise} options={{ clientSecret }}>{paymentStep}</Elements> : paymentStep;
 
   const inputCls = "w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[var(--luxe-gold)] focus:border-[var(--luxe-gold)]";
 
@@ -635,7 +668,9 @@ export default function Apply() {
               )}
 
               {/* ── Step 4: Payment ── */}
-              {step === 4 && applicationId && wrappedPaymentStep}
+              {step === 4 && applicationId && (
+                <PaymentStep clientSecret={clientSecret} applicationId={applicationId} onSuccess={() => setSubmitted(true)} onError={(msg) => setError(msg)} />
+              )}
 
               {/* Error */}
               {error && (
