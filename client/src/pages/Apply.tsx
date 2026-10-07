@@ -296,8 +296,27 @@ export default function Apply() {
   const setCoApp = (field: keyof CoApplicant) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, coApplicant: { ...prev.coApplicant, [field]: e.target.value } }));
 
+  const validate = (): string | null => {
+    if (step === 0) {
+      if (!form.firstName.trim()) return "First name is required.";
+      if (!form.lastName.trim()) return "Last name is required.";
+      if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return "A valid email address is required.";
+      if (!form.phone.trim()) return "Phone number is required.";
+      if (!form.dateOfBirth) return "Date of birth is required.";
+    }
+    if (step === 1) {
+      if (!form.currentAddress.trim()) return "Street address is required.";
+      if (!form.currentCity.trim()) return "City is required.";
+      if (!form.currentState.trim()) return "State is required.";
+      if (!form.currentZip.trim()) return "ZIP code is required.";
+    }
+    return null;
+  };
+
   const goNext = () => {
     setError(null);
+    const validationError = validate();
+    if (validationError) { setError(validationError); return; }
     if (step === 3) {
       initiate.mutate({
         propertyId: form.propertyId || undefined,
