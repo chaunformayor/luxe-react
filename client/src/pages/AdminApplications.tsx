@@ -12,6 +12,8 @@ import {
   Clock,
   Search,
   X,
+  Link2,
+  Copy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -168,6 +170,30 @@ function ApproveModal({
   );
 }
 
+function CopyPaymentLinkButton({ appId }: { appId: string }) {
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/pay/${appId}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={handleCopy}
+      className="border-[#C9A84C] text-[#C9A84C] hover:bg-[#C9A84C]/10"
+    >
+      {copied ? <CheckCircle className="w-4 h-4 mr-1 text-green-600" /> : <Copy className="w-4 h-4 mr-1" />}
+      {copied ? "Copied!" : "Copy Payment Link"}
+    </Button>
+  );
+}
+
 function ApplicationRow({ app, onApprove }: { app: any; onApprove: (app: any) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [reviewNotes, setReviewNotes] = useState(app.reviewNotes ?? "");
@@ -279,6 +305,9 @@ function ApplicationRow({ app, onApprove }: { app: any; onApprove: (app: any) =>
                 />
               </div>
               <div className="flex gap-3 flex-wrap">
+                {app.paymentStatus !== "paid" && (
+                  <CopyPaymentLinkButton appId={app.id} />
+                )}
                 {app.status === "submitted" && (
                   <Button
                     size="sm"

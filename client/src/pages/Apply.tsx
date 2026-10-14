@@ -1,25 +1,18 @@
 import { useState, useRef } from "react";
 import { Link } from "wouter";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, AlertCircle, ChevronRight, ChevronLeft, User, Home, Briefcase, Users, CreditCard, Upload } from "lucide-react";
+import { CheckCircle, AlertCircle, ChevronRight, ChevronLeft, User, Home, Briefcase, Users, Upload } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Layout from "@/components/Layout";
-
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
-const APPLICATION_FEE = 75;
 
 const STEPS = [
   { label: "Personal Info", icon: User },
   { label: "Residence", icon: Home },
   { label: "Employment", icon: Briefcase },
   { label: "References", icon: Users },
-  { label: "Payment", icon: CreditCard },
 ];
 
 type CoApplicant = { firstName: string; lastName: string; email: string; phone: string; dateOfBirth: string };
@@ -180,111 +173,18 @@ function FileUploadField({ label, value, onChange, note }: { label: string; valu
   );
 }
 
-// ── Payment Step (Stripe inner form — only rendered inside <Elements>) ─────────
-function StripeCardForm({ applicationId, clientSecret, onSuccess, onError }: { applicationId: string; clientSecret: string; onSuccess: () => void; onError: (msg: string) => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const confirm = trpc.application.confirmPayment.useMutation({ onSuccess, onError: (e) => onError(e.message) });
-
-  const handlePay = async () => {
-    if (!stripe || !elements) return;
-    setProcessing(true);
-    try {
-      const card = elements.getElement(CardElement);
-      if (!card) throw new Error("Card element not found");
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, { payment_method: { card } });
-      if (error) throw new Error(error.message);
-      if (paymentIntent?.status !== "succeeded") throw new Error("Payment did not succeed");
-      await confirm.mutateAsync({ applicationId });
-    } catch (err: any) {
-      onError(err.message || "Payment failed");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="space-y-4">
-        <div>
-          <Label required>Card Information</Label>
-          <div className="border rounded-md p-3 bg-white">
-            <CardElement options={{ style: { base: { fontSize: "16px", color: "#1a2744", "::placeholder": { color: "#9ca3af" } } } }} />
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 flex items-center gap-1"><span>🔒</span> Encrypted and secure via Stripe.</p>
-      </div>
-      <Button onClick={handlePay} disabled={processing || confirm.isPending || !stripe} className="w-full bg-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/90 text-[var(--luxe-navy)] font-bold text-lg py-6">
-        {processing || confirm.isPending ? "Processing..." : `Pay $${APPLICATION_FEE}.00 & Submit`}
-      </Button>
-    </>
-  );
-}
-
-// ── Demo (no Stripe) payment step ──────────────────────────────────────────────
-function DemoPaymentForm({ applicationId, onSuccess, onError }: { applicationId: string; onSuccess: () => void; onError: (msg: string) => void }) {
-  const [processing, setProcessing] = useState(false);
-  const confirm = trpc.application.confirmPayment.useMutation({ onSuccess, onError: (e) => onError(e.message) });
-
-  const handleSubmit = async () => {
-    setProcessing(true);
-    try {
-      await confirm.mutateAsync({ applicationId });
-    } catch (err: any) {
-      onError(err.message || "Submission failed");
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-        <strong>Demo Mode:</strong> Stripe is not configured. Click below to submit without a real charge.
-      </div>
-      <Button onClick={handleSubmit} disabled={processing || confirm.isPending} className="w-full bg-[var(--luxe-gold)] hover:bg-[var(--luxe-gold)]/90 text-[var(--luxe-navy)] font-bold text-lg py-6">
-        {processing || confirm.isPending ? "Processing..." : "Submit Application"}
-      </Button>
-    </>
-  );
-}
-
-// ── Payment Step wrapper ───────────────────────────────────────────────────────
-function PaymentStep({ clientSecret, applicationId, onSuccess, onError }: { clientSecret: string | null; applicationId: string; onSuccess: () => void; onError: (msg: string) => void }) {
-  return (
-    <div className="space-y-6">
-      <div className="bg-[var(--luxe-navy)]/5 border border-[var(--luxe-navy)]/20 rounded-lg p-5">
-        <h3 className="font-bold text-[var(--luxe-navy)] mb-3">Application Fee — Per Adult Applicant</h3>
-        <div className="flex justify-between py-2 border-b"><span className="text-gray-600">Rental Application Processing</span><span className="font-semibold">$50.00</span></div>
-        <div className="flex justify-between py-2 border-b"><span className="text-gray-600">Background & Credit Check</span><span className="font-semibold">$25.00</span></div>
-        <div className="flex justify-between py-3 font-bold text-lg"><span>Total Due</span><span className="text-[var(--luxe-gold)]">${APPLICATION_FEE}.00</span></div>
-        <p className="text-xs text-gray-500 mt-1">Non-refundable. Each adult (18+) on the lease must submit a separate application and fee.</p>
-      </div>
-      {stripePromise && clientSecret ? (
-        <Elements stripe={stripePromise} options={{ clientSecret }}>
-          <StripeCardForm applicationId={applicationId} clientSecret={clientSecret} onSuccess={onSuccess} onError={onError} />
-        </Elements>
-      ) : (
-        <DemoPaymentForm applicationId={applicationId} onSuccess={onSuccess} onError={onError} />
-      )}
-    </div>
-  );
-}
-
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function Apply() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [applicationId, setApplicationId] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data: properties = [] } = trpc.properties.getAll.useQuery();
 
   const initiate = trpc.application.initiate.useMutation({
-    onSuccess: (data) => { setApplicationId(data.applicationId); setClientSecret(data.clientSecret); setStep(4); },
+    onSuccess: (data) => { setApplicationId(data.applicationId); setSubmitted(true); },
     onError: (e) => setError(e.message),
   });
 
@@ -379,9 +279,12 @@ export default function Apply() {
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-[var(--luxe-navy)] mb-3" style={{ fontFamily: "var(--font-heading)" }}>Application Submitted!</h2>
+              <h2 className="text-2xl font-bold text-[var(--luxe-navy)] mb-3" style={{ fontFamily: "var(--font-heading)" }}>Application Received!</h2>
+              <p className="text-gray-600 mb-2 leading-relaxed">
+                Thank you for applying. Our team will review your application and reach out within 1–2 business days.
+              </p>
               <p className="text-gray-600 mb-4 leading-relaxed">
-                Thank you for applying. We've received your application and payment. Our team will review and contact you within 2–3 business days.
+                If approved, we will send you a secure payment link for the <strong>$75 application fee</strong> to complete the process.
               </p>
               {applicationId && <p className="text-sm text-gray-400 mb-8">Application ID: <span className="font-mono font-semibold text-gray-600">{applicationId}</span></p>}
               <Link href="/"><span className="inline-block px-8 py-3 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] font-semibold rounded-lg hover:bg-[var(--luxe-gold)]/90 transition-colors cursor-pointer">Return to Home</span></Link>
@@ -404,7 +307,7 @@ export default function Apply() {
           </p>
           <h1 className="text-5xl md:text-6xl font-bold mb-6" style={{ fontFamily: "var(--font-heading)" }}>Rental Application</h1>
           <p className="text-white/70 text-xl max-w-2xl leading-relaxed">
-            Complete the form below to apply. A ${APPLICATION_FEE} non-refundable fee per adult covers processing and a comprehensive background &amp; credit check.
+            Complete the form below to apply. Once we review your application we will send you a secure payment link for the $75 processing fee.
           </p>
         </div>
       </section>
@@ -412,7 +315,7 @@ export default function Apply() {
       <div className="bg-white border-b border-gray-100">
         <div className="container mx-auto py-4">
           <div className="flex flex-wrap gap-5 text-sm text-gray-500">
-            {["01 Personal Info", "02 Current Residence", "03 Employment & Income", "04 References & Disclosures", `05 Pay $${APPLICATION_FEE} Fee`].map((s) => (
+            {["01 Personal Info", "02 Current Residence", "03 Employment & Income", "04 References & Disclosures"].map((s) => (
               <span key={s} className="flex items-center gap-1.5">
                 <span className="font-bold text-[var(--luxe-gold)]">{s.split(" ")[0]}</span>
                 <span>{s.split(" ").slice(1).join(" ")}</span>
@@ -686,11 +589,6 @@ export default function Apply() {
                 </div>
               )}
 
-              {/* ── Step 4: Payment ── */}
-              {step === 4 && applicationId && (
-                <PaymentStep clientSecret={clientSecret} applicationId={applicationId} onSuccess={() => setSubmitted(true)} onError={(msg) => setError(msg)} />
-              )}
-
               {/* Error */}
               {error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
@@ -700,17 +598,15 @@ export default function Apply() {
               )}
 
               {/* Navigation */}
-              {step < 4 && (
-                <div className="flex justify-between mt-8 pt-6 border-t">
-                  {step > 0 ? (
-                    <Button variant="outline" onClick={() => setStep((s) => s - 1)}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
-                  ) : <div />}
-                  <Button onClick={goNext} disabled={initiate.isPending} className="bg-[var(--luxe-navy)] hover:bg-[var(--luxe-navy)]/90 text-white">
-                    {initiate.isPending ? "Saving..." : step === 3 ? "Continue to Payment" : "Next"}
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex justify-between mt-8 pt-6 border-t">
+                {step > 0 ? (
+                  <Button variant="outline" onClick={() => setStep((s) => s - 1)}><ChevronLeft className="w-4 h-4 mr-1" /> Back</Button>
+                ) : <div />}
+                <Button onClick={goNext} disabled={initiate.isPending} className="bg-[var(--luxe-navy)] hover:bg-[var(--luxe-navy)]/90 text-white">
+                  {initiate.isPending ? "Submitting..." : step === 3 ? "Submit Application" : "Next"}
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

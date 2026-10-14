@@ -124,48 +124,69 @@ const applicationInputSchema = z.object({
 });
 
 export const applicationRouter = router({
-  // Step 1: Save application data and create Stripe payment intent
+  // Submit application — no payment collected here; admin sends payment link separately
   initiate: publicProcedure
     .input(applicationInputSchema)
     .mutation(async ({ input }) => {
-      const stripe = getStripe();
-
-      let stripePaymentIntentId: string | undefined;
-      let stripeClientSecret: string | undefined;
-
-      if (stripe) {
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: ENV.applicationFeeAmount,
-          currency: "usd",
-          metadata: {
-            applicantEmail: input.email,
-            applicantName: `${input.firstName} ${input.lastName}`,
-          },
-          description: "Rental Application Fee & Background Check",
-        });
-        stripePaymentIntentId = paymentIntent.id;
-        stripeClientSecret = paymentIntent.client_secret ?? undefined;
-      }
-
       const id = await createRentalApplication({
         ...input,
         references: input.references ?? [],
         additionalOccupants: input.additionalOccupants ?? [],
         applicationFee: (ENV.applicationFeeAmount / 100).toFixed(2),
-        stripePaymentIntentId,
-        stripeClientSecret,
-        status: "incomplete",
+        status: "submitted",
         paymentStatus: "pending",
       });
 
+      await notifyOwner({
+        title: "New Rental Application Received",
+        content: `${input.firstName} ${input.lastName} (${input.email}) submitted a rental application.`,
+      });
+
+      return { applicationId: id };
+    }),
+
+  // Called from /pay/:id — creates (or retrieves) a Stripe PaymentIntent for this application
+  getForPayment: publicProcedure
+    .input(z.object({ applicationId: z.string() }))
+    .query(async ({ input }) => {
+      const app = await getRentalApplicationById(input.applicationId);
+      if (!app) throw new Error("Application not found");
+      if (app.paymentStatus === "paid") throw new Error("This application has already been paid.");
+
+      const stripe = getStripe();
+      let clientSecret: string | null = null;
+
+      if (stripe) {
+        if (app.stripeClientSecret && app.stripePaymentIntentId) {
+          // Reuse existing PaymentIntent
+          clientSecret = app.stripeClientSecret;
+        } else {
+          const pi = await stripe.paymentIntents.create({
+            amount: ENV.applicationFeeAmount,
+            currency: "usd",
+            metadata: { applicantEmail: app.email, applicantName: `${app.firstName} ${app.lastName}` },
+            description: "Rental Application Fee & Background Check",
+          });
+          await updateRentalApplication(input.applicationId, {
+            stripePaymentIntentId: pi.id,
+            stripeClientSecret: pi.client_secret ?? undefined,
+          });
+          clientSecret = pi.client_secret ?? null;
+        }
+      }
+
       return {
-        applicationId: id,
-        clientSecret: stripeClientSecret ?? null,
+        applicationId: app.id,
+        firstName: app.firstName,
+        lastName: app.lastName,
+        email: app.email,
         applicationFee: ENV.applicationFeeAmount / 100,
+        clientSecret,
+        paymentStatus: app.paymentStatus,
       };
     }),
 
-  // Step 2: Confirm payment success and mark application submitted
+  // Confirm payment success and mark application paid
   confirmPayment: publicProcedure
     .input(z.object({ applicationId: z.string() }))
     .mutation(async ({ input }) => {
@@ -189,12 +210,11 @@ export const applicationRouter = router({
 
       await updateRentalApplication(input.applicationId, {
         paymentStatus: "paid",
-        status: "submitted",
       });
 
       await notifyOwner({
-        title: "New Rental Application Received",
-        content: `A new rental application was submitted by ${app.firstName} ${app.lastName} (${app.email}).`,
+        title: "Application Fee Received",
+        content: `Payment confirmed for ${app.firstName} ${app.lastName} (${app.email}).`,
       });
 
       return { success: true };

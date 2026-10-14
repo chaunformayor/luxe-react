@@ -46,6 +46,7 @@ import SouthCity from "@/pages/SouthCity";
 import Neighborhoods from "@/pages/Neighborhoods";
 import RentalAnalysis from "@/pages/RentalAnalysis";
 import RentalProcess from "@/pages/RentalProcess";
+import Pay from "@/pages/Pay";
 import ScrollToTop from "@/components/ScrollToTop";
 
 function App() {
@@ -63,6 +64,7 @@ function App() {
             
             {/* Application & Voucher Routes */}
             <Route path={"/apply"} component={Apply} />
+            <Route path={"/pay/:id"} component={Pay} />
             <Route path={"/vouchers"}>
               <Vouchers />
             </Route>
