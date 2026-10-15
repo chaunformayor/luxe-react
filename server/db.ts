@@ -110,7 +110,7 @@ import {
   rentalApplications,
   blogPosts,
 } from "../drizzle/schema";
-import { count, sum, and, gte, lte } from "drizzle-orm";
+import { count, sum, and, or, gte, lte } from "drizzle-orm";
 
 // Dashboard Statistics
 export async function getDashboardStats() {
@@ -746,9 +746,12 @@ export async function getOwnerDocuments(ownerId: string) {
   try {
     const ownerProps = await db.select({ id: properties.id }).from(properties).where(eq(properties.ownerId, ownerId));
     const propIds = ownerProps.map(p => p.id);
-    if (propIds.length === 0) return [];
+    const sharedWithOwner = eq(documents.ownerUserId, ownerId);
 
-    return await db.select().from(documents).where(inArray(documents.propertyId, propIds));
+    return await db
+      .select()
+      .from(documents)
+      .where(propIds.length ? or(sharedWithOwner, inArray(documents.propertyId, propIds)) : sharedWithOwner);
   } catch (error) {
     console.error("[Database] Failed to get owner documents:", error);
     throw error;

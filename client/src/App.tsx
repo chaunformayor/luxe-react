@@ -24,6 +24,8 @@ import OwnerTenants from "@/pages/OwnerTenants";
 import OwnerPayments from "@/pages/OwnerPayments";
 import OwnerMaintenance from "@/pages/OwnerMaintenance";
 import OwnerSettings from "@/pages/OwnerSettings";
+import OwnerDocuments from "@/pages/OwnerDocuments";
+import AdminDocuments from "@/pages/AdminDocuments";
 import TenantDashboard from "@/pages/TenantDashboard";
 import TenantPayments from "@/pages/TenantPayments";
 import TenantMaintenance from "@/pages/TenantMaintenance";
@@ -78,6 +80,7 @@ function App() {
             <Route path={"/admin/users"} component={AdminUsers} />
             <Route path={"/admin/applications"} component={AdminApplications} />
             <Route path={"/admin/blog"} component={AdminBlog} />
+            <Route path={"/admin/documents"} component={AdminDocuments} />
             
             {/* Owner Routes */}
             <Route path={"/owner"} component={OwnerDashboard} />
@@ -86,6 +89,7 @@ function App() {
             <Route path={"/owner/payments"} component={OwnerPayments} />
             <Route path={"/owner/maintenance"} component={OwnerMaintenance} />
             <Route path={"/owner/settings"} component={OwnerSettings} />
+            <Route path={"/owner/documents"} component={OwnerDocuments} />
             
             {/* Tenant Routes */}
             <Route path={"/tenant"} component={TenantDashboard} />

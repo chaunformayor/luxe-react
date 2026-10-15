@@ -1,4 +1,4 @@
-import { mysqlEnum, mysqlTable, text, timestamp, varchar, int, decimal, boolean, json } from "drizzle-orm/mysql-core";
+import { mysqlEnum, mysqlTable, text, timestamp, varchar, int, bigint, decimal, boolean, json, mediumtext } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -173,14 +173,23 @@ export type Subscription = typeof subscriptions.$inferSelect;
 export type InsertSubscription = typeof subscriptions.$inferInsert;
 
 // Documents table
+export const DOCUMENT_TYPES = ["lease", "management_agreement", "w9", "lien_waiver", "inspection", "maintenance", "invoice", "other"] as const;
+
+// Files live in Nextcloud; a row here means the file is shared into a tenant/owner portal.
 export const documents = mysqlTable("documents", {
   id: varchar("id", { length: 64 }).primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  type: mysqlEnum("type", ["lease", "inspection", "maintenance", "invoice", "other"]).notNull(),
-  url: text("url").notNull(),
+  type: mysqlEnum("type", DOCUMENT_TYPES).notNull(),
+  url: text("url"),
+  nextcloudPath: varchar("nextcloudPath", { length: 1024 }),
+  nextcloudFileId: varchar("nextcloudFileId", { length: 32 }),
+  mimeType: varchar("mimeType", { length: 150 }),
+  sizeBytes: bigint("sizeBytes", { mode: "number" }),
   propertyId: varchar("propertyId", { length: 64 }).references(() => properties.id),
   unitId: varchar("unitId", { length: 64 }).references(() => units.id),
   tenantId: varchar("tenantId", { length: 64 }).references(() => tenants.id),
+  ownerUserId: varchar("ownerUserId", { length: 64 }),
+  signatureRequestId: varchar("signatureRequestId", { length: 64 }),
   uploadedBy: varchar("uploadedBy", { length: 64 }).references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
@@ -188,6 +197,100 @@ export const documents = mysqlTable("documents", {
 
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = typeof documents.$inferInsert;
+
+export const TEMPLATE_CATEGORIES = ["lease", "management_agreement", "lien_waiver", "other"] as const;
+
+export const documentTemplates = mysqlTable("documentTemplates", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: mysqlEnum("category", TEMPLATE_CATEGORIES).notNull(),
+  description: text("description"),
+  nextcloudPath: varchar("nextcloudPath", { length: 1024 }).notNull(),
+  nextcloudFileId: varchar("nextcloudFileId", { length: 32 }).notNull(),
+  pageCount: int("pageCount"),
+  signerRoles: json("signerRoles").$type<string[]>(),
+  active: boolean("active").default(true).notNull(),
+  createdBy: varchar("createdBy", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+export type DocumentTemplate = typeof documentTemplates.$inferSelect;
+
+export const SIGNATURE_CATEGORIES = ["lease", "management_agreement", "w9", "lien_waiver", "other"] as const;
+
+export const signatureRequests = mysqlTable("signatureRequests", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  kind: mysqlEnum("kind", ["document", "w9"]).default("document").notNull(),
+  category: mysqlEnum("category", SIGNATURE_CATEGORIES).notNull(),
+  status: mysqlEnum("status", ["sent", "processing", "completed", "declined", "voided", "error"]).default("sent").notNull(),
+  message: text("message"),
+  templateId: varchar("templateId", { length: 64 }),
+  sourcePath: varchar("sourcePath", { length: 1024 }),
+  sourceFileId: varchar("sourceFileId", { length: 32 }),
+  sourceSha256: varchar("sourceSha256", { length: 64 }),
+  sourcePageCount: int("sourcePageCount"),
+  folderPath: varchar("folderPath", { length: 1024 }).notNull(),
+  finalPath: varchar("finalPath", { length: 1024 }),
+  finalFileId: varchar("finalFileId", { length: 32 }),
+  finalSha256: varchar("finalSha256", { length: 64 }),
+  sequential: boolean("sequential").default(true).notNull(),
+  tenantId: varchar("tenantId", { length: 64 }),
+  ownerUserId: varchar("ownerUserId", { length: 64 }),
+  propertyId: varchar("propertyId", { length: 64 }),
+  documentId: varchar("documentId", { length: 64 }),
+  createdBy: varchar("createdBy", { length: 64 }),
+  createdByName: varchar("createdByName", { length: 255 }),
+  createdByEmail: varchar("createdByEmail", { length: 320 }),
+  errorMessage: text("errorMessage"),
+  voidReason: text("voidReason"),
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+  completedAt: timestamp("completedAt"),
+  voidedAt: timestamp("voidedAt"),
+});
+
+export type SignatureRequest = typeof signatureRequests.$inferSelect;
+
+export const signatureSigners = mysqlTable("signatureSigners", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  requestId: varchar("requestId", { length: 64 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  roleLabel: varchar("roleLabel", { length: 100 }),
+  signOrder: int("signOrder").default(1).notNull(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  status: mysqlEnum("status", ["waiting", "sent", "viewed", "signed", "declined"]).default("waiting").notNull(),
+  sentAt: timestamp("sentAt"),
+  viewedAt: timestamp("viewedAt"),
+  consentedAt: timestamp("consentedAt"),
+  signedAt: timestamp("signedAt"),
+  declinedAt: timestamp("declinedAt"),
+  lastReminderAt: timestamp("lastReminderAt"),
+  declineReason: text("declineReason"),
+  signatureMethod: mysqlEnum("signatureMethod", ["typed", "drawn"]),
+  printedName: varchar("printedName", { length: 255 }),
+  signatureImage: mediumtext("signatureImage"),
+  signedIp: varchar("signedIp", { length: 64 }),
+  signedUserAgent: varchar("signedUserAgent", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+export type SignatureSigner = typeof signatureSigners.$inferSelect;
+
+export const signatureEvents = mysqlTable("signatureEvents", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  requestId: varchar("requestId", { length: 64 }).notNull(),
+  signerId: varchar("signerId", { length: 64 }),
+  event: varchar("event", { length: 40 }).notNull(),
+  detail: text("detail"),
+  ip: varchar("ip", { length: 64 }),
+  userAgent: varchar("userAgent", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow(),
+});
+
+export type SignatureEvent = typeof signatureEvents.$inferSelect;
 
 // Rental Applications table
 export const rentalApplications = mysqlTable("rentalApplications", {

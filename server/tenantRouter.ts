@@ -13,6 +13,7 @@ import {
   updateUser,
 } from "./db";
 import { hashPassword, verifyPassword } from "./authRoutes";
+import { documentDownloadUrl } from "./documentsRouter";
 
 // Tenant role check middleware
 const tenantProcedure = protectedProcedure.use(async (opts) => {
@@ -124,6 +125,13 @@ export const tenantRouter = router({
     const tenant = await getTenantByUserId(ctx.user.id);
     if (!tenant) return [];
     return await getTenantDocuments(tenant.id);
+  }),
+
+  getDocumentUrl: tenantProcedure.input(z.object({ documentId: z.string() })).mutation(async ({ ctx, input }) => {
+    const tenant = await getTenantByUserId(ctx.user.id);
+    const doc = tenant ? (await getTenantDocuments(tenant.id)).find((d) => d.id === input.documentId) : undefined;
+    if (!doc) throw new Error("Document not found.");
+    return { url: await documentDownloadUrl(doc) };
   }),
 });
 

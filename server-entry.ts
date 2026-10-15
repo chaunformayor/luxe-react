@@ -6,6 +6,7 @@ import multer from "multer";
 import { put } from "@vercel/blob";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerAuthRoutes } from "./server/authRoutes";
+import { registerDocumentRoutes } from "./server/documentRoutes";
 import { appRouter } from "./server/routers";
 import { createContext } from "./server/_core/context";
 import { sdk } from "./server/_core/sdk";
@@ -84,6 +85,7 @@ app.post("/api/upload", upload.single("file"), async (req, res) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 registerAuthRoutes(app);
+registerDocumentRoutes(app);
 
 app.use(
   "/api/trpc",

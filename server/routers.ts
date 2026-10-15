@@ -7,6 +7,7 @@ import { adminRouter } from "./adminRouter";
 import { ownerRouter } from "./ownerRouter";
 import { tenantRouter } from "./tenantRouter";
 import { applicationRouter } from "./applicationRouter";
+import { documentsRouter } from "./documentsRouter";
 import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug, subscribeToNewsletter, getAllProperties } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendContactNotificationEmail } from "./email";
@@ -17,6 +18,7 @@ export const appRouter = router({
   owner: ownerRouter,
   tenant: tenantRouter,
   application: applicationRouter,
+  documents: documentsRouter,
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

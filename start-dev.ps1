@@ -1,2 +1,3 @@
 $env:NODE_ENV = "development"
-& "C:\Program Files\nodejs\node.exe" "C:\Users\demet\luxe-react\node_modules\.bin\tsx" watch "C:\Users\demet\luxe-react\server\_core\index.ts"
+Set-Location $PSScriptRoot
+& "C:\Program Files\nodejs\node.exe" "$PSScriptRoot\node_modules\tsx\dist\cli.mjs" watch "$PSScriptRoot\server\_core\index.ts"
