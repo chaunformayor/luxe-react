@@ -1,76 +1,138 @@
-import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
-
+const MAILEROO_ENDPOINT = "https://smtp.maileroo.com/api/v2/emails";
 const FROM_NAME = "Luxe Property Solutions";
 
-function getSESClient() {
-  return new SESv2Client({
-    region: process.env.AWS_REGION || "us-east-1",
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
-
 function getFromEmail() {
-  return process.env.SES_FROM_EMAIL || "noreply@luxestl.com";
+  return process.env.MAILEROO_FROM_EMAIL || "noreply@luxestl.com";
 }
 
-async function sendEmail(opts: {
+export function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+export type EmailAttachment = { fileName: string; contentType: string; content: Buffer | Uint8Array };
+
+type SendOpts = {
   to: string;
   toName: string;
   subject: string;
   html: string;
-}) {
-  const accessKey = process.env.AWS_ACCESS_KEY_ID;
-  const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+  replyTo?: { email: string; name?: string };
+  attachments?: EmailAttachment[];
+};
 
-  if (!accessKey || !secretKey) {
-    console.warn("[Email] AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY not set — skipping email");
-    return;
+async function callMaileroo(apiKey: string, opts: SendOpts) {
+  const payload: Record<string, unknown> = {
+    from: { address: getFromEmail(), display_name: FROM_NAME },
+    to: [{ address: opts.to, display_name: opts.toName }],
+    subject: opts.subject,
+    html: opts.html,
+  };
+  if (opts.replyTo) payload.reply_to = { address: opts.replyTo.email, display_name: opts.replyTo.name };
+  if (opts.attachments?.length) {
+    payload.attachments = opts.attachments.map((a) => ({
+      file_name: a.fileName,
+      content_type: a.contentType,
+      content: Buffer.from(a.content).toString("base64"),
+    }));
   }
 
-  const client = getSESClient();
-  const command = new SendEmailCommand({
-    FromEmailAddress: `${FROM_NAME} <${getFromEmail()}>`,
-    Destination: { ToAddresses: [opts.to] },
-    Content: {
-      Simple: {
-        Subject: { Data: opts.subject, Charset: "UTF-8" },
-        Body: { Html: { Data: opts.html, Charset: "UTF-8" } },
-      },
-    },
+  const res = await fetch(MAILEROO_ENDPOINT, {
+    method: "POST",
+    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
-  await client.send(command);
+  let body: any;
+  try {
+    body = await res.json();
+  } catch {
+    body = await res.text().catch(() => "(unreadable)");
+  }
+  return { success: res.ok && body?.success !== false, status: res.status, body };
+}
+
+export async function sendEmail(opts: SendOpts) {
+  const apiKey = process.env.MAILEROO_API_KEY;
+  if (!apiKey) {
+    console.warn("[Email] MAILEROO_API_KEY not set — skipping email");
+    return;
+  }
+  const result = await callMaileroo(apiKey, opts);
+  if (!result.success) {
+    throw new Error(`Maileroo (${result.status}): ${result.body?.message || JSON.stringify(result.body)}`);
+  }
 }
 
 export async function sendTestEmail(to: string): Promise<{
-  credentialsSet: boolean;
+  apiKeySet: boolean;
   fromEmail: string;
   to: string;
-  region: string;
+  httpStatus?: number;
+  responseBody?: any;
   error?: string;
 }> {
-  const credentialsSet = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+  const apiKey = process.env.MAILEROO_API_KEY;
   const fromEmail = getFromEmail();
-  const region = process.env.AWS_REGION || "us-east-1";
-
-  if (!credentialsSet) {
-    return { credentialsSet, fromEmail, to, region, error: "AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY env var is not set" };
+  if (!apiKey) {
+    return { apiKeySet: false, fromEmail, to, error: "MAILEROO_API_KEY env var is not set on the server" };
   }
-
   try {
-    await sendEmail({
+    const result = await callMaileroo(apiKey, {
       to,
       toName: "Luxe Admin",
       subject: "Luxe Property Solutions — Test Email",
-      html: `<p style="font-family:Arial;font-size:15px;">This is a test email from <strong>Luxe Property Solutions</strong> via AWS SES.<br>If you received this, SES is configured correctly.</p>`,
+      html: `<p style="font-family:Arial;font-size:15px;">This is a test email from <strong>Luxe Property Solutions</strong> via Maileroo.<br>If you received this, email is configured correctly.</p>`,
     });
-    return { credentialsSet, fromEmail, to, region };
+    return {
+      apiKeySet: true,
+      fromEmail,
+      to,
+      httpStatus: result.status,
+      responseBody: result.body,
+      error: result.success ? undefined : `Maileroo returned HTTP ${result.status}`,
+    };
   } catch (err: any) {
-    return { credentialsSet, fromEmail, to, region, error: err.message };
+    return { apiKeySet: true, fromEmail, to, error: err.message };
   }
+}
+
+/** Branded wrapper used by the document / e-signature emails. Body HTML must already be escaped. */
+export function emailShell(opts: { heading: string; subheading: string; body: string }) {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;">
+        <tr>
+          <td style="background:#0A1628;padding:28px 40px;text-align:center;">
+            <h1 style="margin:0;color:#C9A84C;font-size:24px;font-weight:700;">${opts.heading}</h1>
+            <p style="margin:8px 0 0;color:#94a3b8;font-size:14px;">${opts.subheading}</p>
+          </td>
+        </tr>
+        <tr><td style="padding:36px 40px;">${opts.body}</td></tr>
+        <tr>
+          <td style="background:#f8f9fa;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} Luxe Property Solutions · 555 Washington Ave, St. Louis, MO 63101 · <a href="mailto:info@luxestl.com" style="color:#9ca3af;">info@luxestl.com</a></p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+export function emailButton(href: string, label: string) {
+  return `<div style="text-align:center;margin:28px 0;">
+  <a href="${escapeHtml(href)}" style="display:inline-block;background:#C9A84C;color:#0A1628;font-weight:700;font-size:15px;padding:14px 32px;border-radius:6px;text-decoration:none;">${escapeHtml(label)}</a>
+</div>`;
 }
 
 export async function sendOwnerWelcomeEmail({
@@ -219,10 +281,16 @@ export async function sendContactNotificationEmail({
   message: string;
 }) {
   const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || "info@luxestl.com";
+  const subjectName = fromName.replace(/[\r\n]+/g, " ").slice(0, 120);
+  fromName = escapeHtml(fromName);
+  fromEmail = escapeHtml(fromEmail);
+  phone = phone ? escapeHtml(phone) : phone;
+  propertyType = propertyType ? escapeHtml(propertyType) : propertyType;
+  message = escapeHtml(message);
   await sendEmail({
     to: adminEmail,
     toName: "Luxe Property Solutions",
-    subject: `New Contact Form Submission from ${fromName}`,
+    subject: `New Contact Form Submission from ${subjectName}`,
     html: `
 <!DOCTYPE html>
 <html>
