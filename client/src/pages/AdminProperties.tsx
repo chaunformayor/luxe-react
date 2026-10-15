@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { trpc } from "@/lib/trpc";
+import { preparePhoto, uploadPhoto } from "@/lib/photoUpload";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,23 +59,19 @@ function PropertyModal({
     if (!files.length) return;
     setUploadError(null);
     setUploading(true);
-    try {
-      const urls: string[] = [];
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Upload failed");
-        urls.push(json.url);
+    // One bad photo shouldn't drop the rest: keep each success, list each failure
+    const errors: string[] = [];
+    for (const file of files) {
+      try {
+        const url = await uploadPhoto(await preparePhoto(file));
+        setImages(prev => [...prev, url]);
+      } catch (err: any) {
+        errors.push(err.message ?? `${file.name}: upload failed`);
       }
-      setImages(prev => [...prev, ...urls]);
-    } catch (err: any) {
-      setUploadError(err.message ?? "Upload failed");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+    if (errors.length) setUploadError(errors.join("\n"));
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (url: string) => setImages(prev => prev.filter(u => u !== url));
@@ -200,10 +197,7 @@ function PropertyModal({
               className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-[#C9A84C] hover:text-[#C9A84C] transition w-full justify-center disabled:opacity-50">
               {uploading ? <><Loader2 size={16} className="animate-spin" /> Uploading...</> : <><ImagePlus size={16} /> Add Photos</>}
             </button>
-            {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
-            {!process.env.BLOB_READ_WRITE_TOKEN && images.length === 0 && (
-              <p className="text-xs text-amber-600 mt-1">Add <strong>BLOB_READ_WRITE_TOKEN</strong> to Vercel env vars to enable photo uploads.</p>
-            )}
+            {uploadError && <p className="text-xs text-red-600 mt-1 whitespace-pre-line">{uploadError}</p>}
           </div>
 
           <div className="flex gap-6">
