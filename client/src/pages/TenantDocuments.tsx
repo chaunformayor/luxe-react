@@ -4,7 +4,6 @@ import PortalDocuments from "@/components/PortalDocuments";
 
 export default function TenantDocuments() {
   const { data: documents, isLoading } = trpc.tenant.getDocuments.useQuery();
-  const getUrl = trpc.tenant.getDocumentUrl.useMutation();
 
   return (
     <TenantLayout>
@@ -16,7 +15,6 @@ export default function TenantDocuments() {
         <PortalDocuments
           documents={documents}
           isLoading={isLoading}
-          getUrl={async (documentId) => (await getUrl.mutateAsync({ documentId })).url}
           emptyHint="Your lease and other documents will appear here"
         />
       </div>

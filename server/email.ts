@@ -56,16 +56,18 @@ async function callMaileroo(apiKey: string, opts: SendOpts) {
   return { success: res.ok && body?.success !== false, status: res.status, body };
 }
 
-export async function sendEmail(opts: SendOpts) {
+/** Resolves false when email isn't configured (nothing sent); throws if Maileroo rejects it. */
+export async function sendEmail(opts: SendOpts): Promise<boolean> {
   const apiKey = process.env.MAILEROO_API_KEY;
   if (!apiKey) {
     console.warn("[Email] MAILEROO_API_KEY not set — skipping email");
-    return;
+    return false;
   }
   const result = await callMaileroo(apiKey, opts);
   if (!result.success) {
     throw new Error(`Maileroo (${result.status}): ${result.body?.message || JSON.stringify(result.body)}`);
   }
+  return true;
 }
 
 export async function sendTestEmail(to: string): Promise<{

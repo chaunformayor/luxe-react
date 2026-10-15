@@ -104,13 +104,6 @@ export async function createDocumentRecord(data: {
   return id;
 }
 
-/** Direct download link for a document row (legacy rows may still carry a plain URL). */
-export async function documentDownloadUrl(doc: { nextcloudFileId: string | null; url: string | null }) {
-  if (doc.nextcloudFileId) return nc.getDirectUrl(doc.nextcloudFileId);
-  if (doc.url) return doc.url;
-  throw new TRPCError({ code: "NOT_FOUND", message: "This document has no file attached." });
-}
-
 export const documentsRouter = router({
   status: adminProcedure.query(() => {
     try {
@@ -154,10 +147,6 @@ export const documentsRouter = router({
       await nc.ensureFolder(path);
       return { path };
     }),
-
-  getDownloadUrl: adminProcedure.input(z.object({ fileId: z.string().regex(/^\d+$/) })).mutation(async ({ input }) => {
-    return { url: await nc.getDirectUrl(input.fileId) };
-  }),
 
   /** Picker data for "who is this for?" — tenants, owners, properties. */
   parties: adminProcedure.query(async () => {

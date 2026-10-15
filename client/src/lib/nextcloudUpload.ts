@@ -44,15 +44,7 @@ export async function uploadToNextcloud(
   }
 }
 
-/** Opens a link fetched asynchronously without tripping popup blockers. */
-export async function openFetchedUrl(getUrl: () => Promise<string>) {
-  const win = window.open("", "_blank");
-  try {
-    const url = await getUrl();
-    if (win) win.location.href = url;
-    else window.location.href = url;
-  } catch (err) {
-    win?.close();
-    throw err;
-  }
+/** Admin download link for any file in the Luxe drive (streamed through this site). */
+export function adminFileUrl(fileId: string, name: string) {
+  return `/api/docs/file/${fileId}?name=${encodeURIComponent(name)}`;
 }

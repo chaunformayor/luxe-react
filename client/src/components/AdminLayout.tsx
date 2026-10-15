@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, LogOut, BarChart3, Building2, MessageSquare, Wrench, CreditCard, Users, FileText, BookOpen, FolderOpen } from "lucide-react";
+import { Menu, X, LogOut, BarChart3, Building2, MessageSquare, Wrench, CreditCard, Users, FileText, BookOpen, FolderOpen, FileSignature } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 
@@ -45,6 +45,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { path: "/admin/users", label: "Users", icon: Users },
     { path: "/admin/applications", label: "Applications", icon: FileText },
     { path: "/admin/documents", label: "Documents", icon: FolderOpen },
+    { path: "/admin/esign", label: "E-Signatures", icon: FileSignature },
     { path: "/admin/blog", label: "Blog", icon: BookOpen },
   ];
 

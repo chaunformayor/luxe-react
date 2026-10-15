@@ -12,8 +12,6 @@ import {
   updateUser,
 } from "./db";
 import { hashPassword, verifyPassword } from "./authRoutes";
-import { documentDownloadUrl } from "./documentsRouter";
-
 // Owner role check middleware
 const ownerProcedure = protectedProcedure.use(async (opts) => {
   if (opts.ctx.user?.role !== "owner" && opts.ctx.user?.role !== "admin") {
@@ -89,13 +87,6 @@ export const ownerRouter = router({
   getDocuments: ownerProcedure.query(async ({ ctx }) => {
     return await getOwnerDocuments(ctx.user.id);
   }),
-
-  getDocumentUrl: ownerProcedure.input(z.object({ documentId: z.string() })).mutation(async ({ ctx, input }) => {
-    const doc = (await getOwnerDocuments(ctx.user.id)).find((d) => d.id === input.documentId);
-    if (!doc) throw new Error("Document not found.");
-    return { url: await documentDownloadUrl(doc) };
-  }),
-
   // Account: update name
   updateProfile: ownerProcedure
     .input(z.object({ name: z.string().min(1) }))

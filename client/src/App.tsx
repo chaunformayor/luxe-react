@@ -26,6 +26,8 @@ import OwnerMaintenance from "@/pages/OwnerMaintenance";
 import OwnerSettings from "@/pages/OwnerSettings";
 import OwnerDocuments from "@/pages/OwnerDocuments";
 import AdminDocuments from "@/pages/AdminDocuments";
+import AdminESign from "@/pages/AdminESign";
+import Sign from "@/pages/Sign";
 import TenantDashboard from "@/pages/TenantDashboard";
 import TenantPayments from "@/pages/TenantPayments";
 import TenantMaintenance from "@/pages/TenantMaintenance";
@@ -81,6 +83,8 @@ function App() {
             <Route path={"/admin/applications"} component={AdminApplications} />
             <Route path={"/admin/blog"} component={AdminBlog} />
             <Route path={"/admin/documents"} component={AdminDocuments} />
+            <Route path={"/admin/esign"} component={AdminESign} />
+            <Route path={"/sign/:token"} component={Sign} />
             
             {/* Owner Routes */}
             <Route path={"/owner"} component={OwnerDashboard} />

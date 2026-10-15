@@ -4,7 +4,6 @@ import PortalDocuments from "@/components/PortalDocuments";
 
 export default function OwnerDocuments() {
   const { data: documents, isLoading } = trpc.owner.getDocuments.useQuery();
-  const getUrl = trpc.owner.getDocumentUrl.useMutation();
 
   return (
     <OwnerLayout>
@@ -16,7 +15,6 @@ export default function OwnerDocuments() {
         <PortalDocuments
           documents={documents}
           isLoading={isLoading}
-          getUrl={async (documentId) => (await getUrl.mutateAsync({ documentId })).url}
           emptyHint="Your management agreement and property documents will appear here"
         />
       </div>

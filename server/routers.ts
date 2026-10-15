@@ -8,6 +8,7 @@ import { ownerRouter } from "./ownerRouter";
 import { tenantRouter } from "./tenantRouter";
 import { applicationRouter } from "./applicationRouter";
 import { documentsRouter } from "./documentsRouter";
+import { esignRouter, signRouter } from "./esign/router";
 import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug, subscribeToNewsletter, getAllProperties } from "./db";
 import { notifyOwner } from "./_core/notification";
 import { sendContactNotificationEmail } from "./email";
@@ -19,6 +20,8 @@ export const appRouter = router({
   tenant: tenantRouter,
   application: applicationRouter,
   documents: documentsRouter,
+  esign: esignRouter,
+  sign: signRouter,
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

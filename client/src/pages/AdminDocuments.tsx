@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
+  FileSignature,
   FileText,
   Folder,
   FolderPlus,
@@ -16,7 +17,7 @@ import {
 import AdminLayout from "@/components/AdminLayout";
 import PartyPicker, { NO_PARTY, partyIds, useParties, type PartySelection } from "@/components/PartyPicker";
 import { trpc } from "@/lib/trpc";
-import { openFetchedUrl, uploadToNextcloud } from "@/lib/nextcloudUpload";
+import { adminFileUrl, uploadToNextcloud } from "@/lib/nextcloudUpload";
 import { DOCUMENT_TYPE_LABELS, formatBytes, type DocumentType } from "@shared/documents";
 
 const QUICK_FOLDERS = ["/Tenants", "/Owners", "/Properties", "/Vendors", "/Templates", "/E-Sign Originals"];
@@ -241,20 +242,10 @@ export default function AdminDocuments() {
     onSuccess: () => utils.documents.browse.invalidate(),
     onError: (e) => setActionError(e.message),
   });
-  const downloadUrl = trpc.documents.getDownloadUrl.useMutation();
   const { describe } = useParties();
 
   const segments = path.split("/").filter(Boolean);
   const refresh = () => utils.documents.browse.invalidate();
-
-  async function download(item: any) {
-    setActionError(null);
-    try {
-      await openFetchedUrl(async () => (await downloadUrl.mutateAsync({ fileId: item.fileId })).url);
-    } catch (err: any) {
-      setActionError(err.message);
-    }
-  }
 
   if (status.data && !status.data.configured) {
     return (
@@ -376,12 +367,21 @@ export default function AdminDocuments() {
                     <td className="px-4 py-3">
                       {!item.isFolder && (
                         <div className="flex justify-end gap-1">
-                          <button onClick={() => download(item)} title="Download" className="p-2 rounded hover:bg-gray-200 text-gray-600">
+                          <a href={adminFileUrl(item.fileId!, item.name)} target="_blank" rel="noopener noreferrer" title="Open / download" className="p-2 rounded hover:bg-gray-200 text-gray-600">
                             <Download size={16} />
-                          </button>
+                          </a>
                           <button onClick={() => setShareItem(item)} title="Share in portal" className="p-2 rounded hover:bg-gray-200 text-gray-600">
                             <Share2 size={16} />
                           </button>
+                          {item.mimeType === "application/pdf" && (
+                            <a
+                              href={`/admin/esign?fileId=${item.fileId}&name=${encodeURIComponent(item.name)}`}
+                              title="Send for signature"
+                              className="p-2 rounded hover:bg-gray-200 text-gray-600"
+                            >
+                              <FileSignature size={16} />
+                            </a>
+                          )}
                         </div>
                       )}
                     </td>
