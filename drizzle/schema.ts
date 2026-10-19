@@ -209,6 +209,9 @@ export const documentTemplates = mysqlTable("documentTemplates", {
   nextcloudFileId: varchar("nextcloudFileId", { length: 32 }).notNull(),
   pageCount: int("pageCount"),
   signerRoles: json("signerRoles").$type<string[]>(),
+  // "docx" templates contain {{placeholders}} that are filled in each time they're sent.
+  format: mysqlEnum("format", ["pdf", "docx"]).default("pdf").notNull(),
+  fields: json("fields").$type<string[]>(),
   active: boolean("active").default(true).notNull(),
   createdBy: varchar("createdBy", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow(),

@@ -12,6 +12,8 @@ import {
 import * as nc from "../nextcloud";
 import { FOLDERS, createDocumentRecord, getOwnerParty, getPropertyParty, getTenantParty, requireDb } from "../documentsRouter";
 import { buildSignedPdf, inspectPdf, sha256, validateSignaturePng } from "./pdf";
+import { docxToPdf, extractFields, fillDocx } from "./docx";
+import { labelFor, resolveFieldValues, type FieldContext } from "./fields";
 import {
   adminRecipient,
   sendCompletedCopy,
@@ -95,7 +97,25 @@ export async function createTemplate(
   input: { fileId: string; path: string; name: string; category: (typeof documentTemplates.$inferInsert)["category"]; signerRoles: string[]; description?: string },
   adminId: string
 ) {
-  const { pageCount } = await inspectPdf(await nc.downloadByFileId(input.fileId));
+  const bytes = await nc.downloadByFileId(input.fileId);
+  const format = /\.docx$/i.test(input.path) ? "docx" : "pdf";
+  let fields: string[] | null = null;
+  let pageCount: number | null = null;
+  let warning: string | null = null;
+
+  if (format === "docx") {
+    fields = extractFields(bytes);
+    // Trial conversion: proves the converter works and gives a page count. The template is
+    // still saved if the converter is down, since it can be fixed before the first send.
+    try {
+      pageCount = (await inspectPdf(await docxToPdf(fillDocx(bytes, {})))).pageCount;
+    } catch (err: any) {
+      warning = err?.message ?? "The Word-to-PDF converter couldn't process this template.";
+    }
+  } else {
+    pageCount = (await inspectPdf(bytes)).pageCount;
+  }
+
   const db = await requireDb();
   const id = newId("tpl");
   await db.insert(documentTemplates).values({
@@ -107,12 +127,39 @@ export async function createTemplate(
     nextcloudFileId: input.fileId,
     pageCount,
     signerRoles: input.signerRoles.map((r) => r.trim()).filter(Boolean),
+    format,
+    fields,
     active: true,
     createdBy: adminId,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
-  return id;
+  return { id, fields, warning };
+}
+
+async function activeTemplate(templateId: string) {
+  const db = await requireDb();
+  const [template] = await db.select().from(documentTemplates).where(eq(documentTemplates.id, templateId)).limit(1);
+  if (!template?.active) throw new TRPCError({ code: "NOT_FOUND", message: "That template no longer exists." });
+  return template;
+}
+
+/** A Word template's placeholders, pre-filled with whatever the site knows about this tenant/owner/property. */
+export async function templateFieldsFor(templateId: string, ctx: FieldContext) {
+  const template = await activeTemplate(templateId);
+  const known = await resolveFieldValues(ctx);
+  return (template.fields ?? []).map((key) => ({ key, label: labelFor(key), value: known[key] ?? "", known: key in known }));
+}
+
+async function renderTemplatePdf(template: { nextcloudFileId: string }, values: Record<string, string>) {
+  const docx = await nc.downloadByFileId(template.nextcloudFileId);
+  return docxToPdf(fillDocx(docx, values));
+}
+
+export async function previewTemplate(templateId: string, values: Record<string, string>) {
+  const template = await activeTemplate(templateId);
+  if (template.format !== "docx") throw new TRPCError({ code: "BAD_REQUEST", message: "Only Word templates have a filled-in preview." });
+  return renderTemplatePdf(template, values);
 }
 
 export async function updateTemplate(
@@ -146,23 +193,26 @@ export type CreateInput = PartyLinks & {
   signers: { name: string; email: string; roleLabel?: string }[];
   sequential: boolean;
   message?: string;
+  /** Values for a Word template's {{placeholders}}. */
+  fieldValues?: Record<string, string>;
 };
 
 export async function createSignatureRequest(input: CreateInput, admin: { id: string; name: string | null; email: string | null }) {
   const db = await requireDb();
 
   let templateId: string | null = null;
-  let fileId: string;
+  let bytes: Uint8Array;
   if (input.source.kind === "template") {
-    const [template] = await db.select().from(documentTemplates).where(eq(documentTemplates.id, input.source.templateId)).limit(1);
-    if (!template?.active) throw new TRPCError({ code: "NOT_FOUND", message: "That template no longer exists." });
+    const template = await activeTemplate(input.source.templateId);
     templateId = template.id;
-    fileId = template.nextcloudFileId;
+    bytes =
+      template.format === "docx"
+        ? await renderTemplatePdf(template, input.fieldValues ?? {})
+        : await nc.downloadByFileId(template.nextcloudFileId);
   } else {
-    fileId = input.source.fileId;
+    bytes = await nc.downloadByFileId(input.source.fileId);
   }
 
-  const bytes = await nc.downloadByFileId(fileId);
   const { pageCount } = await inspectPdf(bytes);
 
   // Freeze a private copy so later edits to a template or shared file can't change what was signed.

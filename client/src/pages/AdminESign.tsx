@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Copy,
   Download,
+  Eye,
   FileSignature,
   FileText,
   Loader2,
@@ -24,6 +25,7 @@ import AdminLayout from "@/components/AdminLayout";
 import PartyPicker, { NO_PARTY, partyIds, useParties, type PartySelection } from "@/components/PartyPicker";
 import { trpc } from "@/lib/trpc";
 import { adminFileUrl, uploadToNextcloud } from "@/lib/nextcloudUpload";
+import PdfViewer from "@/components/PdfViewer";
 import { SIGNATURE_CATEGORY_LABELS, type SignatureCategory } from "@shared/documents";
 
 type SendCategory = Exclude<SignatureCategory, "w9">;
@@ -104,6 +106,131 @@ async function copyText(text: string) {
   }
 }
 
+// ── Word template details ─────────────────────────────────────────────────────
+type FieldValues = Record<string, string>;
+
+function base64ToBlobUrl(base64: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+}
+
+function TemplateFields({
+  templateId,
+  party,
+  values,
+  onChange,
+}: {
+  templateId: string;
+  party: PartySelection;
+  values: FieldValues;
+  onChange: (update: (prev: FieldValues) => FieldValues) => void;
+}) {
+  const { properties, propertyLabel } = useParties();
+  const [contextProperty, setContextProperty] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const edited = useRef(new Set<string>());
+  const ready = party.kind === "none" || !!party.id;
+  const fields = trpc.esign.templateFields.useQuery(
+    { templateId, ...partyIds(party), ...(contextProperty ? { propertyId: contextProperty } : {}) },
+    { enabled: ready }
+  );
+  const preview = trpc.esign.previewTemplate.useMutation({
+    onSuccess: (r) => setPreviewUrl(base64ToBlobUrl(r.pdfBase64)),
+    onError: (e) => toast.error(e.message),
+  });
+
+  // Fill in what the site knows, without overwriting anything typed by hand.
+  useEffect(() => {
+    if (!fields.data) return;
+    onChange((prev) => {
+      const next = { ...prev };
+      for (const f of fields.data) if (!edited.current.has(f.key)) next[f.key] = f.value;
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.data]);
+
+  useEffect(
+    () => () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    },
+    [previewUrl]
+  );
+
+  const showPropertyPicker = party.kind === "none" || party.kind === "owner";
+
+  return (
+    <div className="border border-[#C9A84C]/40 bg-[#C9A84C]/5 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-[#0A1628]">Fill in the details</p>
+          <p className="text-xs text-gray-500">Highlighted fields came from the site. Change anything that's wrong.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => preview.mutate({ templateId, values })}
+          disabled={preview.isPending || !fields.data}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 shrink-0"
+        >
+          {preview.isPending ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />} Preview
+        </button>
+      </div>
+      {showPropertyPicker && (
+        <div>
+          <label className={labelCls}>Use property details from</label>
+          <select className={inputCls} value={contextProperty} onChange={(e) => setContextProperty(e.target.value)}>
+            <option value="">{party.kind === "owner" ? "— The owner's property (if they have just one) —" : "— No property —"}</option>
+            {properties.map((p) => (
+              <option key={p.id} value={p.id}>
+                {propertyLabel(p)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {!ready ? (
+        <p className="text-sm text-gray-500">Choose who it's for above to fill in their details.</p>
+      ) : fields.isLoading ? (
+        <p className="text-sm text-gray-400">Loading details…</p>
+      ) : fields.error ? (
+        <p className="text-sm text-red-600">{fields.error.message}</p>
+      ) : !fields.data?.length ? (
+        <p className="text-sm text-gray-500">This template has no {"{{placeholders}}"}.</p>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {fields.data.map((f) => (
+            <div key={f.key}>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                {f.label} <span className="font-mono text-[10px] text-gray-400">{"{{" + f.key + "}}"}</span>
+              </label>
+              <input
+                className={
+                  f.known && f.value && values[f.key] === f.value
+                    ? inputCls.replace("bg-white", "bg-[#C9A84C]/10").replace("border-gray-300", "border-[#C9A84C]/60")
+                    : inputCls
+                }
+                value={values[f.key] ?? ""}
+                onChange={(e) => {
+                  edited.current.add(f.key);
+                  const v = e.target.value;
+                  onChange((prev) => ({ ...prev, [f.key]: v }));
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {previewUrl && (
+        <Modal title="Preview" subtitle="This is exactly what signers will see" onClose={() => setPreviewUrl(null)} wide>
+          <div className="max-h-[70vh] overflow-y-auto bg-gray-200/60 p-3 rounded-lg">
+            <PdfViewer url={previewUrl} />
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ── New signature request ─────────────────────────────────────────────────────
 type SignerRow = { name: string; email: string; roleLabel: string };
 type Prefill = { fileId: string; name: string } | null;
@@ -123,13 +250,19 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
   const [signers, setSigners] = useState<SignerRow[]>([{ name: "", email: "", roleLabel: "" }]);
   const [sequential, setSequential] = useState(true);
   const [message, setMessage] = useState("");
+  const [fieldValues, setFieldValues] = useState<FieldValues>({});
+  const [blankConfirmed, setBlankConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const activeTemplates = templates.data ?? [];
+  const selectedTemplate = activeTemplates.find((t) => t.id === templateId);
+  const usesFields = sourceKind === "template" && selectedTemplate?.format === "docx";
 
   function applyTemplate(id: string) {
     setTemplateId(id);
+    setFieldValues({});
+    setBlankConfirmed(false);
     const t = activeTemplates.find((x) => x.id === id);
     if (!t) return;
     setTitle((prev) => prev || t.name);
@@ -180,6 +313,16 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
       return setError("Every signer needs a name and a valid email.");
     }
     if (party.kind !== "none" && !party.id) return setError(`Select which ${party.kind} this is for, or choose "Nobody".`);
+    if (usesFields && !blankConfirmed) {
+      const blanks = ((selectedTemplate?.fields as string[] | null) ?? []).filter((k) => !fieldValues[k]?.trim());
+      if (blanks.length) {
+        setBlankConfirmed(true);
+        const one = blanks.length === 1;
+        return setError(
+          `${blanks.length} detail${one ? " is" : "s are"} blank (${blanks.join(", ")}). Fill ${one ? "it" : "them"} in, or click Send again to leave ${one ? "it" : "them"} blank.`
+        );
+      }
+    }
 
     setBusy(true);
     try {
@@ -199,6 +342,7 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
         sequential,
         message: message.trim() || undefined,
         ...partyIds(party),
+        ...(usesFields ? { fieldValues } : {}),
       });
       if (result.emailed === result.invited) {
         toast.success(sequential ? `Sent to ${cleanSigners[0].name}` : `Sent to ${cleanSigners.length} signer${cleanSigners.length === 1 ? "" : "s"}`);
@@ -240,7 +384,7 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
               <option value="">— Choose a template —</option>
               {activeTemplates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} · {SIGNATURE_CATEGORY_LABELS[t.category as SendCategory]}
+                  {t.name} · {SIGNATURE_CATEGORY_LABELS[t.category as SendCategory]}{t.format === "docx" ? " · fills in details" : ""}
                 </option>
               ))}
             </select>
@@ -282,6 +426,8 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
         <label className={labelCls}>Who is it for? (files the signed copy and shows it in their portal)</label>
         <PartyPicker value={party} onChange={setParty} noneLabel="Nobody in the system" />
       </div>
+
+      {usesFields && <TemplateFields key={templateId} templateId={templateId} party={party} values={fieldValues} onChange={setFieldValues} />}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
@@ -544,15 +690,19 @@ function TemplateModal({ template, onClose, onSaved }: { template: any | null; o
   async function save() {
     setError(null);
     if (!name.trim()) return setError("Give the template a name.");
-    if (!template && !file) return setError("Choose a PDF.");
+    if (!template && !file) return setError("Choose a Word (.docx) or PDF file.");
+    if (!template && file && !/\.(pdf|docx)$/i.test(file.name)) return setError("Templates must be Word (.docx) or PDF files.");
     const signerRoles = roles.split(",").map((r) => r.trim()).filter(Boolean);
     setBusy(true);
     try {
       if (template) {
         await update.mutateAsync({ id: template.id, name: name.trim(), category, signerRoles });
       } else {
-        const uploaded = await uploadToNextcloud(file!, "/Templates", `${name.trim()}.pdf`);
-        await create.mutateAsync({ fileId: uploaded.fileId, path: uploaded.path, name: name.trim(), category, signerRoles });
+        const ext = /\.docx$/i.test(file!.name) ? "docx" : "pdf";
+        const uploaded = await uploadToNextcloud(file!, "/Templates", `${name.trim()}.${ext}`);
+        const result = await create.mutateAsync({ fileId: uploaded.fileId, path: uploaded.path, name: name.trim(), category, signerRoles });
+        if (result.warning) toast.warning(`Template saved, but: ${result.warning}`, { duration: 12000 });
+        else if (result.fields) toast.success(`Template saved with ${result.fields.length} fill-in${result.fields.length === 1 ? "" : "s"}`);
       }
       onSaved();
     } catch (err: any) {
@@ -563,16 +713,16 @@ function TemplateModal({ template, onClose, onSaved }: { template: any | null; o
   }
 
   return (
-    <Modal title={template ? "Edit Template" : "Add Template"} subtitle={template ? undefined : "PDFs are stored in Nextcloud under Templates"} onClose={busy ? () => {} : onClose}>
+    <Modal title={template ? "Edit Template" : "Add Template"} subtitle={template ? undefined : "Stored in Nextcloud under Templates"} onClose={busy ? () => {} : onClose}>
       {!template && (
         <div>
-          <label className={labelCls}>PDF</label>
-          <input type="file" accept="application/pdf,.pdf" onChange={(e) => {
+          <label className={labelCls}>Word (.docx) or PDF</label>
+          <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             setFile(f);
-            if (f && !name) setName(f.name.replace(/\.pdf$/i, ""));
+            if (f && !name) setName(f.name.replace(/\.(pdf|docx)$/i, ""));
           }} className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0A1628] file:text-white file:text-sm file:font-semibold" />
-          <p className="text-xs text-gray-500 mt-1.5">Tip: in Word, use File → Save As → PDF.</p>
+          <p className="text-xs text-gray-500 mt-1.5">Use Word with {"{{placeholders}}"} to fill in details each time (see the guide on the Templates tab). PDFs are sent exactly as they are.</p>
         </div>
       )}
       <div>
@@ -610,6 +760,57 @@ function TemplateModal({ template, onClose, onSaved }: { template: any | null; o
   );
 }
 
+function PlaceholderGuide() {
+  const fields = trpc.esign.standardFields.useQuery();
+  const [open, setOpen] = useState(false);
+
+  async function copy(tag: string) {
+    try {
+      await navigator.clipboard.writeText(tag);
+      toast.success(`Copied ${tag}`);
+    } catch {
+      window.prompt("Copy this placeholder:", tag);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-5 py-4 text-left">
+        <span className="font-semibold text-[#0A1628]">How to make a Word template that fills itself in</span>
+        {open ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+      </button>
+      {open && (
+        <div className="px-5 pb-5 space-y-4 text-sm text-gray-700">
+          <ol className="list-decimal pl-5 space-y-1.5">
+            <li>Open your lease or agreement in Word.</li>
+            <li>
+              Wherever a detail changes each time, type a placeholder with two curly braces on each side, e.g. <code className="bg-gray-100 px-1 rounded">{"{{tenant_name}}"}</code>. Format it however you like (bold, underline) — the formatting is kept.
+            </li>
+            <li>
+              Need something the site doesn't track, like a deposit or pet fee? Make up a name in lowercase with underscores, e.g. <code className="bg-gray-100 px-1 rounded">{"{{security_deposit}}"}</code>. You'll type the value when you send.
+            </li>
+            <li>You don't need signature lines — a signature page is added automatically. Save as .docx and upload it here.</li>
+          </ol>
+          <div>
+            <p className="font-semibold text-[#0A1628] mb-2">Placeholders the site fills in for you (click to copy)</p>
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+              {(fields.data ?? []).map((f) => {
+                const tag = `{{${f.key}}}`;
+                return (
+                  <button key={f.key} onClick={() => copy(tag)} className="flex items-baseline justify-between gap-3 text-left py-1 border-b border-gray-100 hover:bg-gray-50">
+                    <code className="text-[#8a6d1f] text-xs">{tag}</code>
+                    <span className="text-xs text-gray-500 text-right">{f.source}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TemplatesTab() {
   const utils = trpc.useUtils();
   const templates = trpc.esign.templates.useQuery();
@@ -619,7 +820,7 @@ function TemplatesTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center gap-3">
-        <p className="text-sm text-gray-600">Reusable PDFs — leases, management agreements, lien waivers. Each send makes its own frozen copy.</p>
+        <p className="text-sm text-gray-600">Word templates fill in tenant, owner and property details every time you send. PDFs are sent as-is.</p>
         <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0A1628] text-white rounded-lg text-sm font-bold hover:bg-[#0A1628]/90 shrink-0">
           <Upload size={16} /> Add Template
         </button>
@@ -628,13 +829,14 @@ function TemplatesTab() {
         {templates.isLoading ? (
           <div className="p-8 text-center text-gray-400 text-sm">Loading…</div>
         ) : !templates.data?.length ? (
-          <div className="p-10 text-center text-gray-500 text-sm">No templates yet. Upload your lease or management agreement as a PDF to get started.</div>
+          <div className="p-10 text-center text-gray-500 text-sm">No templates yet. Add {"{{placeholders}}"} to your Word lease or management agreement (guide below), then upload it.</div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
               <tr>
                 <th className="px-4 py-3 font-semibold">Name</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
+                <th className="px-4 py-3 font-semibold">Format</th>
                 <th className="px-4 py-3 font-semibold">Pages</th>
                 <th className="px-4 py-3 font-semibold">Signer roles</th>
                 <th className="px-4 py-3 font-semibold text-right">Actions</th>
@@ -645,11 +847,20 @@ function TemplatesTab() {
                 <tr key={t.id}>
                   <td className="px-4 py-3 font-medium text-[#0A1628]">{t.name}</td>
                   <td className="px-4 py-3 text-gray-600">{SIGNATURE_CATEGORY_LABELS[t.category as SendCategory]}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {t.format === "docx" ? (
+                      <span title={((t.fields as string[]) ?? []).map((f) => "{{" + f + "}}").join("  ")}>
+                        Word · {((t.fields as string[]) ?? []).length} fill-ins
+                      </span>
+                    ) : (
+                      "PDF"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-600">{t.pageCount ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-600">{((t.signerRoles as string[]) ?? []).join(" → ") || "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
-                      <a href={adminFileUrl(t.nextcloudFileId, `${t.name}.pdf`)} target="_blank" rel="noopener noreferrer" title="Open" className="p-2 rounded hover:bg-gray-200 text-gray-600">
+                      <a href={adminFileUrl(t.nextcloudFileId, `${t.name}.${t.format === "docx" ? "docx" : "pdf"}`)} target="_blank" rel="noopener noreferrer" title="Open" className="p-2 rounded hover:bg-gray-200 text-gray-600">
                         <Download size={16} />
                       </a>
                       <button onClick={() => setEditing(t)} title="Edit" className="p-2 rounded hover:bg-gray-200 text-gray-600">
@@ -670,6 +881,7 @@ function TemplatesTab() {
           </table>
         )}
       </div>
+      <PlaceholderGuide />
       {editing && (
         <TemplateModal
           template={editing === "new" ? null : editing}

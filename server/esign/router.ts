@@ -4,9 +4,11 @@ import type { Request } from "express";
 import { adminProcedure, publicProcedure, router } from "../_core/trpc";
 import { TEMPLATE_CATEGORIES } from "../../drizzle/schema";
 import * as esign from "./service";
+import { STANDARD_FIELDS } from "./fields";
 
 const fileId = z.string().regex(/^\d+$/);
 const token = z.string().min(40).max(64);
+const fieldValues = z.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.string().max(5000));
 
 function auditFrom(req: Request): esign.Audit {
   const forwarded = req.headers["x-forwarded-for"];
@@ -37,7 +39,17 @@ export const esignRouter = router({
         description: z.string().max(1000).optional(),
       })
     )
-    .mutation(async ({ input, ctx }) => ({ id: await esign.createTemplate(input, ctx.user.id) })),
+    .mutation(({ input, ctx }) => esign.createTemplate(input, ctx.user.id)),
+
+  standardFields: adminProcedure.query(() => STANDARD_FIELDS),
+
+  templateFields: adminProcedure
+    .input(z.object({ templateId: z.string(), tenantId: z.string().optional(), ownerUserId: z.string().optional(), propertyId: z.string().optional() }))
+    .query(({ input: { templateId, ...ctx } }) => esign.templateFieldsFor(templateId, ctx)),
+
+  previewTemplate: adminProcedure
+    .input(z.object({ templateId: z.string(), values: fieldValues }))
+    .mutation(async ({ input }) => ({ pdfBase64: Buffer.from(await esign.previewTemplate(input.templateId, input.values)).toString("base64") })),
 
   updateTemplate: adminProcedure
     .input(
@@ -75,6 +87,7 @@ export const esignRouter = router({
         tenantId: z.string().optional(),
         ownerUserId: z.string().optional(),
         propertyId: z.string().optional(),
+        fieldValues: fieldValues.optional(),
       })
     )
     .mutation(({ input, ctx }) => esign.createSignatureRequest(input, { id: ctx.user.id, name: ctx.user.name, email: ctx.user.email })),
