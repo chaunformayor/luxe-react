@@ -15,6 +15,8 @@ export const STANDARD_FIELDS: { key: string; label: string; source: string }[] =
   { key: "property_state", label: "State", source: "Property" },
   { key: "property_zip", label: "ZIP", source: "Property" },
   { key: "property_full_address", label: "Full address", source: "Property (street, city, state ZIP)" },
+  { key: "property_beds", label: "Bedrooms", source: "Property" },
+  { key: "property_baths", label: "Bathrooms", source: "Property" },
   { key: "unit_number", label: "Unit number", source: "Tenant's unit" },
   { key: "monthly_rent", label: "Monthly rent", source: "Tenant's unit (or the property's listed rent)" },
   { key: "lease_start", label: "Lease start date", source: "Tenant record" },
@@ -98,6 +100,8 @@ export async function resolveFieldValues(ctx: FieldContext): Promise<Record<stri
       values.property_state = p.state;
       values.property_zip = p.zipCode;
       values.property_full_address = `${p.address}, ${p.city}, ${p.state} ${p.zipCode}`;
+      values.property_beds = String(p.beds);
+      values.property_baths = String(Number(p.baths));
       if (!values.monthly_rent && p.type === "Rent") values.monthly_rent = money(p.price);
       ownerId ??= p.ownerId ?? null;
     }
