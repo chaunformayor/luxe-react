@@ -23,6 +23,8 @@ import {
   getUserByEmail,
   createUser,
   updateUser,
+  userLinks,
+  deleteUser,
   createTenant,
   updateTenant,
   getAllUnits,
@@ -298,6 +300,20 @@ export const adminRouter = router({
     .input(z.string())
     .mutation(async ({ input }) => {
       await deleteUnit(input);
+      return { success: true };
+    }),
+
+  deleteUser: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      if (input.id === ctx.user.id) throw new Error("You can't delete your own account.");
+      const links = await userLinks(input.id);
+      if (links.length) {
+        throw new Error(
+          `This account is linked to ${links.join(", ")}, so it can't be deleted. Change its role or reset its password instead.`
+        );
+      }
+      await deleteUser(input.id);
       return { success: true };
     }),
 

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users, Shield, Home, User, UserPlus, X, Copy, Check,
-  FlaskConical, Mail, Edit2, Key, UserCheck,
+  FlaskConical, Mail, Edit2, Key, UserCheck, Trash2,
 } from "lucide-react";
 
 const ROLES = ["admin", "owner", "tenant", "user"] as const;
@@ -411,9 +411,47 @@ function TestEmailModal({ onClose }: { onClose: () => void }) {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
+function DeleteUserModal({ user, onClose, onSuccess }: { user: any; onClose: () => void; onSuccess: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const del = trpc.admin.deleteUser.useMutation({
+    onSuccess: () => { onSuccess(); onClose(); },
+    onError: (e) => setError(e.message),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="p-5 border-b flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#0A1628]">Delete User</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-700">
+            Permanently delete <strong>{user.name || user.email}</strong> ({user.email})? They won't be able to sign in, and
+            this can't be undone.
+          </p>
+          <p className="text-xs text-gray-500">
+            Accounts linked to properties, tenant records, payments, documents or signing requests can't be deleted.
+          </p>
+          {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+            <button onClick={() => { setError(null); del.mutate({ id: user.id }); }} disabled={del.isPending}
+              className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+              {del.isPending ? "Deleting..." : "Delete User"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminUsers() {
   const utils = trpc.useUtils();
   const { data: users, isLoading } = trpc.admin.getAllUsers.useQuery();
+  const { data: me } = trpc.auth.me.useQuery();
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [filterRole, setFilterRole] = useState<string>("all");
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
@@ -454,6 +492,7 @@ export default function AdminUsers() {
       {assignTarget && <AssignTenantModal user={assignTarget} onClose={() => setAssignTarget(null)} onSuccess={invalidate} />}
       {seedResult && <SeedResult result={seedResult} onClose={() => setSeedResult(null)} />}
       {showTestEmail && <TestEmailModal onClose={() => setShowTestEmail(false)} />}
+      {deleteTarget && <DeleteUserModal user={deleteTarget} onClose={() => setDeleteTarget(null)} onSuccess={invalidate} />}
 
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -557,6 +596,12 @@ export default function AdminUsers() {
                                 className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition">
                                 <Key size={15} />
                               </button>
+                              {user.id !== me?.id && (
+                                <button onClick={() => setDeleteTarget(user)} title="Delete user"
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition">
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

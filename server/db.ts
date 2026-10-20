@@ -111,10 +111,13 @@ import {
   invoices,
   subscriptions,
   documents,
+  documentTemplates,
+  signatureRequests,
+  notifications,
   rentalApplications,
   blogPosts,
 } from "../drizzle/schema";
-import { count, sum, and, or, gte, lte } from "drizzle-orm";
+import { count, sum, and, or, gte, lte, type SQL } from "drizzle-orm";
 
 // Dashboard Statistics
 export async function getDashboardStats() {
@@ -421,6 +424,37 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
   if (!db) throw new Error("Database not available");
 
   await db.update(users).set(data).where(eq(users.id, id));
+}
+
+/** Records that point at a user, as "N label" strings; an account with any of these can't be deleted. */
+export async function userLinks(id: string): Promise<string[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const links: string[] = [];
+  const check = async (one: string, many: string, table: any, where: SQL | undefined) => {
+    const [row] = await db.select({ n: count() }).from(table).where(where);
+    const n = Number(row?.n ?? 0);
+    if (n) links.push(`${n} ${n === 1 ? one : many}`);
+  };
+  await check("property", "properties", properties, or(eq(properties.ownerId, id), eq(properties.createdBy, id)));
+  await check("tenant record", "tenant records", tenants, eq(tenants.userId, id));
+  await check("payment", "payments", payments, eq(payments.userId, id));
+  await check("document", "documents", documents, or(eq(documents.ownerUserId, id), eq(documents.uploadedBy, id)));
+  await check("signing request", "signing requests", signatureRequests, or(eq(signatureRequests.ownerUserId, id), eq(signatureRequests.createdBy, id)));
+  await check("template", "templates", documentTemplates, eq(documentTemplates.createdBy, id));
+  await check("inquiry", "inquiries", inquiries, eq(inquiries.assignedTo, id));
+  await check("maintenance request", "maintenance requests", maintenanceRequests, eq(maintenanceRequests.assignedTo, id));
+  await check("reviewed application", "reviewed applications", rentalApplications, eq(rentalApplications.reviewedBy, id));
+  return links;
+}
+
+/** Deletes an account that nothing else points at, along with its notifications. */
+export async function deleteUser(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(notifications).where(eq(notifications.userId, id));
+  await db.delete(users).where(eq(users.id, id));
 }
 
 export async function createTenant(data: {
