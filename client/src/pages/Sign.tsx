@@ -4,6 +4,8 @@ import { AlertTriangle, CheckCircle2, Clock, Download, ExternalLink, FileSignatu
 import { trpc } from "@/lib/trpc";
 import PdfViewer from "@/components/PdfViewer";
 import SignaturePad, { type SignatureValue } from "@/components/SignaturePad";
+import { FieldInput, inputClass } from "@/components/TemplateFieldsForm";
+import { fieldSpec } from "@shared/templateFields";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -61,6 +63,16 @@ export default function Sign() {
   const view = trpc.sign.view.useMutation();
   const submit = trpc.sign.submit.useMutation({ onSuccess: (data) => utils.sign.get.setData({ token }, data) });
   const decline = trpc.sign.decline.useMutation({ onSuccess: (data) => utils.sign.get.setData({ token }, data) });
+  const submitDetails = trpc.sign.submitDetails.useMutation({
+    onSuccess: (data) => {
+      utils.sign.get.setData({ token }, data);
+      setEditingDetails(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+  });
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [details, setDetails] = useState<Record<string, string> | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   const [consent, setConsent] = useState(false);
   const [printedName, setPrintedName] = useState("");
@@ -183,6 +195,71 @@ export default function Sign() {
     );
   }
 
+  // ── Step 1 for the first signer: their details, before the document exists ─
+  if (data.needsDetails || editingDetails) {
+    const current = details ?? Object.fromEntries(data.detailFields.map((f) => [f.key, f.value]));
+    const missing = data.detailFields.filter((f) => !current[f.key]?.trim());
+    return (
+      <Shell>
+        <div className="space-y-6">
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
+            <p className="text-xs font-bold tracking-[0.2em] text-[#C9A84C] uppercase mb-2">Step 1 of 2 · Your details</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#0A1628] mb-2" style={{ fontFamily: "var(--font-heading)" }}>
+              {data.title}
+            </h1>
+            <p className="text-gray-600">
+              {data.senderName} at Luxe Property Solutions needs a few details from you. They'll be added to the document, and then you'll review and sign it.
+            </p>
+            {data.message && (
+              <div className="mt-4 bg-[#f8f6ef] border-l-4 border-[#C9A84C] rounded-r-lg px-4 py-3 text-gray-700 whitespace-pre-wrap">{data.message}</div>
+            )}
+          </section>
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              {data.detailFields.map((f) => {
+                const spec = fieldSpec(f.key);
+                const value = current[f.key] ?? "";
+                return (
+                  <div key={f.key} className={spec.kind === "longtext" ? "sm:col-span-2" : undefined}>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">{f.label}</label>
+                    <FieldInput
+                      fieldKey={f.key}
+                      spec={spec}
+                      value={value}
+                      cls={inputClass(value.trim() ? "filled" : "blank") + " !text-base !py-2.5"}
+                      onChange={(v) => setDetails({ ...current, [f.key]: v })}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500">Type N/A for anything that doesn't apply.</p>
+            {detailsError && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{detailsError}</div>}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {editingDetails && (
+                <button onClick={() => setEditingDetails(false)} className="sm:w-40 py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setDetailsError(null);
+                  if (missing.length) return setDetailsError(`Please fill in: ${missing.map((f) => f.label).join(", ")}.`);
+                  submitDetails.mutate({ token, values: current }, { onError: (e) => setDetailsError(e.message) });
+                }}
+                disabled={submitDetails.isPending}
+                className="flex-1 py-3.5 rounded-xl bg-[#C9A84C] hover:bg-[#C9A84C]/90 text-[#0A1628] font-bold text-lg disabled:opacity-50 inline-flex items-center justify-center gap-2"
+              >
+                {submitDetails.isPending && <Loader2 className="w-5 h-5 animate-spin" />}
+                {submitDetails.isPending ? "Preparing your document…" : "Continue to review & sign"}
+              </button>
+            </div>
+          </section>
+        </div>
+      </Shell>
+    );
+  }
+
   // ── Ready to sign ──────────────────────────────────────────────────────────
   const canSign = consent && printedName.trim().length >= 2 && !!signature && !submit.isPending;
 
@@ -211,6 +288,14 @@ export default function Sign() {
           </p>
           {data.message && (
             <div className="mt-4 bg-[#f8f6ef] border-l-4 border-[#C9A84C] rounded-r-lg px-4 py-3 text-gray-700 whitespace-pre-wrap">{data.message}</div>
+          )}
+          {data.canEditDetails && (
+            <p className="mt-4 text-sm text-gray-600 bg-green-50 border border-green-100 rounded-lg px-4 py-2.5">
+              Your details have been added to the document.{" "}
+              <button onClick={() => { setDetails(null); setEditingDetails(true); }} className="font-semibold text-[#0A1628] underline">
+                Edit details
+              </button>
+            </p>
           )}
           {data.signers.length > 1 && progress}
         </section>

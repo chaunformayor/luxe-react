@@ -16,6 +16,7 @@ export type FieldGroup = (typeof FIELD_GROUPS)[number];
 
 const EXACT: Record<string, Partial<FieldSpec>> = {
   today: { kind: "date", group: "Agreement terms" },
+  properties: { group: "Property" },
   currently_occupied: { suggestions: ["Yes", "No"] },
   payout_method: { suggestions: ["ACH direct deposit", "Check"] },
   owner_preferred_contact: { suggestions: ["Call", "Text", "Email"] },
@@ -76,8 +77,14 @@ export function fieldSpec(key: string): FieldSpec {
   };
 }
 
+/** Fields the first signer can be asked to fill in on the signing page. */
+export function isAskable(key: string) {
+  return key !== "today" && key !== "properties" && !key.startsWith("properties.") && fieldSpec(key).group !== "Luxe (company)";
+}
+
 /** Fields worth remembering per template (policies like fees), not per-person or per-property details. */
 export function isDefaultable(key: string) {
+  if (key.includes(".")) return false; // columns of the properties list
   const spec = fieldSpec(key);
   if (spec.kind === "date") return false;
   if (["Owner", "Tenant", "Property", "Luxe (company)"].includes(spec.group)) return false;

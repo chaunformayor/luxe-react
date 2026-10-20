@@ -241,6 +241,12 @@ export const signatureRequests = mysqlTable("signatureRequests", {
   finalFileId: varchar("finalFileId", { length: 32 }),
   finalSha256: varchar("finalSha256", { length: 64 }),
   sequential: boolean("sequential").default(true).notNull(),
+  // Word templates: values filled in by Luxe, plus fields the first signer fills in before the PDF exists.
+  fieldValues: json("fieldValues").$type<Record<string, string>>(),
+  signerFields: json("signerFields").$type<string[]>(),
+  signerFieldValues: json("signerFieldValues").$type<Record<string, string>>(),
+  fieldsSignerId: varchar("fieldsSignerId", { length: 64 }),
+  sourceDocxFileId: varchar("sourceDocxFileId", { length: 32 }),
   tenantId: varchar("tenantId", { length: 64 }),
   ownerUserId: varchar("ownerUserId", { length: 64 }),
   propertyId: varchar("propertyId", { length: 64 }),

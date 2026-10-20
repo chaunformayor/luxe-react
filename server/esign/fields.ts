@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { properties, tenants, units, users } from "../../drizzle/schema";
 import { requireDb } from "../documentsRouter";
 
@@ -16,6 +16,7 @@ export const STANDARD_FIELDS: { key: string; label: string; source: string }[] =
   { key: "property_zip", label: "ZIP", source: "Property" },
   { key: "property_full_address", label: "Full address", source: "Property (street, city, state ZIP)" },
   { key: "property_beds", label: "Bedrooms", source: "Property" },
+  { key: "properties", label: "Properties list", source: "Repeating {{#properties}}…{{/properties}} table row — one row per property you pick" },
   { key: "property_baths", label: "Bathrooms", source: "Property" },
   { key: "unit_number", label: "Unit number", source: "Tenant's unit" },
   { key: "monthly_rent", label: "Monthly rent", source: "Tenant's unit (or the property's listed rent)" },
@@ -29,7 +30,8 @@ export const STANDARD_FIELDS: { key: string; label: string; source: string }[] =
 
 const LABELS = new Map(STANDARD_FIELDS.map((f) => [f.key, f.label]));
 
-export function labelFor(key: string) {
+export function labelFor(rawKey: string) {
+  const key = rawKey.replace(/^properties./, "");
   return LABELS.get(key) ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -43,7 +45,25 @@ function money(value: string | number | null | undefined) {
   return Number.isFinite(n) ? n.toLocaleString("en-US", { style: "currency", currency: "USD" }) : String(value);
 }
 
-export type FieldContext = { tenantId?: string | null; ownerUserId?: string | null; propertyId?: string | null };
+export type FieldContext = { tenantId?: string | null; ownerUserId?: string | null; propertyId?: string | null; propertyIds?: string[] };
+
+type PropertyRow = typeof properties.$inferSelect;
+
+/** One row of a {{#properties}} list; "_id" lets the send form keep edits when the selection changes. */
+function propertyRowValues(p: PropertyRow) {
+  return {
+    _id: p.id,
+    property_name: p.name,
+    property_address: p.address,
+    property_city: p.city,
+    property_state: p.state,
+    property_zip: p.zipCode,
+    property_full_address: `${p.address}, ${p.city}, ${p.state} ${p.zipCode}`,
+    property_beds: String(p.beds),
+    property_baths: String(Number(p.baths)),
+    target_rent: p.type === "Rent" ? money(p.price) : "",
+  };
+}
 
 /** Values the site already knows for this tenant/owner/property. Unknown fields are left out. */
 export async function resolveFieldValues(ctx: FieldContext): Promise<Record<string, string>> {
@@ -112,6 +132,18 @@ export async function resolveFieldValues(ctx: FieldContext): Promise<Record<stri
     if (o?.name) values.owner_name = o.name;
     if (o?.email) values.owner_email = o.email;
   }
+
+  // For templates with a properties list: the properties picked on the send form, else all of the owner's.
+  const listed = ctx.propertyIds?.length
+    ? await db.select().from(properties).where(inArray(properties.id, ctx.propertyIds))
+    : ownerId
+      ? await db.select().from(properties).where(eq(properties.ownerId, ownerId))
+      : propertyId
+        ? await db.select().from(properties).where(eq(properties.id, propertyId))
+        : [];
+  const order = ctx.propertyIds ?? [];
+  listed.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id) || a.name.localeCompare(b.name));
+  values.properties = JSON.stringify(listed.map(propertyRowValues));
 
   return values;
 }

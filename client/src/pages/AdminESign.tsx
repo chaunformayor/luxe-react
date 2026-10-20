@@ -65,6 +65,7 @@ const EVENT_TEXT: Record<string, string> = {
   email_failed: "Email failed",
   link_copied: "Signing link copied",
   viewed: "Opened the document",
+  details_provided: "Filled in their details",
   consented: "Agreed to e-sign",
   signed: "Signed",
   declined: "Declined",
@@ -127,17 +128,23 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
   const [message, setMessage] = useState("");
   const [fieldValues, setFieldValues] = useState<FieldValues>({});
   const [blankConfirmed, setBlankConfirmed] = useState(false);
+  const [asked, setAsked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const activeTemplates = templates.data ?? [];
   const selectedTemplate = activeTemplates.find((t) => t.id === templateId);
   const usesFields = sourceKind === "template" && selectedTemplate?.format === "docx";
+  const firstSigner = signers[0];
+  const askLabel = usesFields ? firstSigner?.roleLabel.trim() || firstSigner?.name.trim() || "the first signer" : null;
+  const signerAsked = usesFields ? asked : [];
+  const inOrder = sequential || signerAsked.length > 0;
 
   function applyTemplate(id: string) {
     setTemplateId(id);
     setFieldValues({});
     setBlankConfirmed(false);
+    setAsked([]);
     const t = activeTemplates.find((x) => x.id === id);
     if (!t) return;
     // Follow the template's name unless the title was typed by hand.
@@ -190,7 +197,17 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
     }
     if (party.kind !== "none" && !party.id) return setError(`Select which ${party.kind} this is for, or choose "Nobody".`);
     if (usesFields && !blankConfirmed) {
-      const blanks = ((selectedTemplate?.fields as string[] | null) ?? []).filter((k) => !fieldValues[k]?.trim());
+      const blanks = ((selectedTemplate?.fields as string[] | null) ?? []).filter((k) => {
+        if (k.startsWith("properties.") || signerAsked.includes(k)) return false;
+        if (k === "properties") {
+          try {
+            return !JSON.parse(fieldValues.properties || "[]").length;
+          } catch {
+            return true;
+          }
+        }
+        return !fieldValues[k]?.trim();
+      });
       if (blanks.length) {
         setBlankConfirmed(true);
         const one = blanks.length === 1;
@@ -215,13 +232,13 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
         category,
         source,
         signers: cleanSigners.map((s) => ({ name: s.name.trim(), email: s.email.trim(), roleLabel: s.roleLabel.trim() || undefined })),
-        sequential,
+        sequential: inOrder,
         message: message.trim() || undefined,
         ...partyIds(party),
-        ...(usesFields ? { fieldValues } : {}),
+        ...(usesFields ? { fieldValues, signerFields: signerAsked } : {}),
       });
       if (result.emailed === result.invited) {
-        toast.success(sequential ? `Sent to ${cleanSigners[0].name}` : `Sent to ${cleanSigners.length} signer${cleanSigners.length === 1 ? "" : "s"}`);
+        toast.success(inOrder ? `Sent to ${cleanSigners[0].name}` : `Sent to ${cleanSigners.length} signer${cleanSigners.length === 1 ? "" : "s"}`);
       } else {
         toast.warning("Request created, but the signing email couldn't be sent. Use “Copy link” to send it yourself.", { duration: 10000 });
       }
@@ -303,20 +320,32 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
         <PartyPicker value={party} onChange={setParty} noneLabel="Nobody in the system" />
       </div>
 
-      {usesFields && <TemplateFieldsForm key={templateId} templateId={templateId} party={party} values={fieldValues} onChange={setFieldValues} />}
+      {usesFields && (
+        <TemplateFieldsForm
+          key={templateId}
+          templateId={templateId}
+          party={party}
+          values={fieldValues}
+          onChange={setFieldValues}
+          askLabel={askLabel}
+          asked={asked}
+          onAskedChange={setAsked}
+          autoAskGroups={category === "management_agreement" ? ["Owner", "Property"] : []}
+        />
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <label className={labelCls + " mb-0"}>Signers</label>
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={sequential} onChange={(e) => setSequential(e.target.checked)} />
+            <input type="checkbox" checked={inOrder} disabled={signerAsked.length > 0} onChange={(e) => setSequential(e.target.checked)} />
             Sign in this order
           </label>
         </div>
         <div className="space-y-2">
           {signers.map((s, i) => (
             <div key={i} className="grid grid-cols-12 gap-2 items-center">
-              <span className="col-span-1 text-sm font-bold text-gray-400 text-center">{sequential ? i + 1 : "•"}</span>
+              <span className="col-span-1 text-sm font-bold text-gray-400 text-center">{inOrder ? i + 1 : "•"}</span>
               <input className={inputCls + " col-span-4"} placeholder="Full name" value={s.name} onChange={(e) => updateSigner(i, { name: e.target.value })} />
               <input className={inputCls + " col-span-4"} placeholder="Email" type="email" value={s.email} onChange={(e) => updateSigner(i, { email: e.target.value })} />
               <input className={inputCls + " col-span-2"} placeholder="Role" value={s.roleLabel} onChange={(e) => updateSigner(i, { roleLabel: e.target.value })} />
@@ -474,7 +503,8 @@ function RequestCard({ request, onChanged }: { request: any; onChanged: () => vo
 
         <ul className="mt-4 divide-y divide-gray-100 border border-gray-100 rounded-lg">
           {request.signers.map((s: any) => {
-            const st = SIGNER_STATUS[s.status] ?? SIGNER_STATUS.waiting;
+            const fillingDetails = request.fieldsSignerId === s.id && !request.sourceFileId && (s.status === "sent" || s.status === "viewed");
+            const st = fillingDetails ? { label: "Filling in details", cls: "text-amber-600" } : SIGNER_STATUS[s.status] ?? SIGNER_STATUS.waiting;
             const canCopy = isOpen && (s.status === "sent" || s.status === "viewed");
             return (
               <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
@@ -511,9 +541,13 @@ function RequestCard({ request, onChanged }: { request: any; onChanged: () => vo
           <button onClick={() => setOpen(!open)} className="inline-flex items-center gap-1 font-semibold text-gray-600 hover:text-[#0A1628]">
             {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />} Audit trail
           </button>
-          <a href={`/api/esign/requests/${request.id}/source`} target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-600 hover:text-[#0A1628]">
-            View original
-          </a>
+          {request.sourceFileId ? (
+            <a href={`/api/esign/requests/${request.id}/source`} target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-600 hover:text-[#0A1628]">
+              View original
+            </a>
+          ) : (
+            <span className="text-gray-400">Document is created once {request.signers[0]?.name ?? "the first signer"} adds their details</span>
+          )}
           {request.finalPath && <span className="text-gray-400 truncate">Filed in Nextcloud: {request.finalPath}</span>}
         </div>
 

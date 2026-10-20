@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronDown, ChevronUp, Eye, Loader2, Save, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, Eye, Loader2, Plus, Save, Trash2, UserRound, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import PdfViewer from "@/components/PdfViewer";
 import { partyIds, useParties, type PartySelection } from "@/components/PartyPicker";
@@ -11,6 +11,7 @@ import {
   formatMoney,
   formatPercent,
   formatPhone,
+  isAskable,
   isDefaultable,
   isoToDisplayDate,
   leaseEndIso,
@@ -23,16 +24,27 @@ import {
 
 export type FieldValues = Record<string, string>;
 type Field = { key: string; label: string; value: string; source: "site" | "default" | null };
+type PropertyRow = Record<string, string>;
 
+const LIST = "properties";
 const baseInput =
-  "w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C]";
+  "w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-[#C9A84C] focus:ring-1 focus:ring-[#C9A84C] disabled:bg-gray-100 disabled:text-gray-400";
 const labelCls = "block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5";
 
-function inputClass(state: "site" | "default" | "blank" | "filled") {
+export function inputClass(state: "site" | "default" | "blank" | "filled") {
   if (state === "site") return `${baseInput} bg-[#C9A84C]/10 border-[#C9A84C]/60`;
   if (state === "default") return `${baseInput} bg-blue-50 border-blue-200`;
   if (state === "blank") return `${baseInput} bg-white border-amber-300`;
   return `${baseInput} bg-white border-gray-300`;
+}
+
+export function parseRows(value: string | undefined): PropertyRow[] {
+  try {
+    const rows = JSON.parse(value || "[]");
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
 }
 
 function Chip({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
@@ -54,8 +66,24 @@ function Adorned({ prefix, suffix, children }: { prefix?: string; suffix?: strin
 }
 
 /** One input, chosen by the placeholder's name. Values are kept exactly as they'll print. */
-function FieldInput({ field, spec, value, cls, onChange }: { field: Field; spec: FieldSpec; value: string; cls: string; onChange: (v: string) => void }) {
-  const listId = spec.suggestions ? `dl-${field.key}` : undefined;
+export function FieldInput({
+  fieldKey,
+  spec,
+  value,
+  cls,
+  onChange,
+  disabled,
+  placeholder,
+}: {
+  fieldKey: string;
+  spec: FieldSpec;
+  value: string;
+  cls: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const listId = spec.suggestions ? `dl-${fieldKey.replace(/\W/g, "-")}` : undefined;
   const datalist = spec.suggestions && (
     <datalist id={listId}>
       {spec.suggestions.map((s) => (
@@ -63,6 +91,7 @@ function FieldInput({ field, spec, value, cls, onChange }: { field: Field; spec:
       ))}
     </datalist>
   );
+  if (disabled) return <input className={cls} disabled value="" placeholder={placeholder} />;
 
   switch (spec.kind) {
     case "date": {
@@ -81,12 +110,13 @@ function FieldInput({ field, spec, value, cls, onChange }: { field: Field; spec:
         </div>
       );
     }
-    case "money":
+    case "money": {
+      const numeric = parseMoney(value) !== null || !value;
       return (
         <>
-          <Adorned prefix={parseMoney(value) !== null || !value ? "$" : undefined}>
+          <Adorned prefix={numeric ? "$" : undefined}>
             <input
-              className={`${cls} ${parseMoney(value) !== null || !value ? "pl-7" : ""}`}
+              className={`${cls} ${numeric ? "pl-7" : ""}`}
               inputMode="decimal"
               list={listId}
               value={value.replace(/^\$/, "")}
@@ -98,6 +128,7 @@ function FieldInput({ field, spec, value, cls, onChange }: { field: Field; spec:
           {datalist}
         </>
       );
+    }
     case "percent":
       return (
         <Adorned suffix="%">
@@ -202,29 +233,127 @@ function Helpers({ fieldKey, values, set }: { fieldKey: string; values: FieldVal
   return null;
 }
 
+/** One card per property in the template's {{#properties}} table. */
+function PropertiesEditor({
+  columns,
+  labels,
+  rows,
+  onRowsChange,
+  onPickProperties,
+}: {
+  columns: string[];
+  labels: Record<string, string>;
+  rows: PropertyRow[];
+  onRowsChange: (rows: PropertyRow[]) => void;
+  onPickProperties: (ids: string[]) => void;
+}) {
+  const { properties, propertyLabel } = useParties();
+  const dbIds = rows.map((r) => r._id).filter((id) => id && !id.startsWith("manual-"));
+  const available = properties.filter((p) => !dbIds.includes(p.id));
+
+  const updateCell = (index: number, col: string, value: string) =>
+    onRowsChange(rows.map((r, i) => (i === index ? { ...r, [col]: value } : r)));
+
+  const remove = (index: number) => {
+    const row = rows[index];
+    if (row._id && !row._id.startsWith("manual-")) onPickProperties(dbIds.filter((id) => id !== row._id));
+    else onRowsChange(rows.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="sm:col-span-2 space-y-2">
+      {!rows.length && <p className="text-sm text-amber-700">No properties yet — add at least one below.</p>}
+      {rows.map((row, index) => (
+        <div key={row._id ?? index} className="border border-gray-200 rounded-lg p-3 bg-white">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-sm font-semibold text-[#0A1628] truncate">
+              {index + 1}. {row.property_full_address || row.property_address || row.property_name || "New property"}
+            </p>
+            <button type="button" onClick={() => remove(index)} className="text-gray-400 hover:text-red-600" aria-label="Remove property">
+              <Trash2 size={15} />
+            </button>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-2">
+            {columns.map((col) => {
+              const value = row[col] ?? "";
+              return (
+                <div key={col} className={fieldSpec(col).kind === "longtext" || col === "property_full_address" ? "sm:col-span-3" : undefined}>
+                  <label className="block text-[11px] font-semibold text-gray-500 mb-0.5">{labels[col] ?? col}</label>
+                  <FieldInput fieldKey={`${LIST}-${index}-${col}`} spec={fieldSpec(col)} value={value} cls={inputClass(value ? "filled" : "blank")} onChange={(v) => updateCell(index, col, v)} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-2">
+        {available.length > 0 && (
+          <select
+            className={`${inputClass("filled")} max-w-xs`}
+            value=""
+            onChange={(e) => e.target.value && onPickProperties([...dbIds, e.target.value])}
+          >
+            <option value="">+ Add a property…</option>
+            {available.map((p) => (
+              <option key={p.id} value={p.id}>
+                {propertyLabel(p)}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          onClick={() => onRowsChange([...rows, { _id: `manual-${Date.now()}` }])}
+          className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50"
+        >
+          <Plus size={14} /> Add one not in the system
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function TemplateFieldsForm({
   templateId,
   party,
   values,
   onChange,
+  askLabel,
+  asked,
+  onAskedChange,
+  autoAskGroups,
 }: {
   templateId: string;
   party: PartySelection;
   values: FieldValues;
   onChange: (update: (prev: FieldValues) => FieldValues) => void;
+  /** e.g. "Owner" — the first signer, who can be asked to fill fields in. Null hides asking. */
+  askLabel: string | null;
+  asked: string[];
+  onAskedChange: (keys: string[]) => void;
+  /** Groups whose still-blank fields start out assigned to the signer. */
+  autoAskGroups: FieldGroup[];
 }) {
   const utils = trpc.useUtils();
   const { properties, propertyLabel } = useParties();
   const [contextProperty, setContextProperty] = useState("");
+  const [pickedProperties, setPickedProperties] = useState<string[] | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [onlyBlank, setOnlyBlank] = useState(false);
   const [openGroups, setOpenGroups] = useState<Set<FieldGroup>>(new Set(FIELD_GROUPS.filter((g) => g !== "Luxe (company)")));
   const edited = useRef(new Set<string>());
+  const autoAsked = useRef(false);
   const ready = party.kind === "none" || !!party.id;
 
   const fields = trpc.esign.templateFields.useQuery(
-    { templateId, ...partyIds(party), ...(contextProperty ? { propertyId: contextProperty } : {}) },
-    { enabled: ready }
+    {
+      templateId,
+      ...partyIds(party),
+      ...(contextProperty ? { propertyId: contextProperty } : {}),
+      // An explicit empty selection must not fall back to "all of the owner's properties".
+      ...(pickedProperties ? { propertyIds: pickedProperties.length ? pickedProperties : ["__none__"] } : {}),
+    },
+    { enabled: ready, placeholderData: (prev) => prev }
   );
   const preview = trpc.esign.previewTemplate.useMutation({
     onSuccess: (r) => {
@@ -241,14 +370,36 @@ export default function TemplateFieldsForm({
     onError: (e) => toast.error(e.message),
   });
 
+  const all = fields.data ?? [];
+  const columns = all.filter((f) => f.key.startsWith(`${LIST}.`)).map((f) => f.key.slice(LIST.length + 1));
+  const columnLabels = Object.fromEntries(all.filter((f) => f.key.startsWith(`${LIST}.`)).map((f) => [f.key.slice(LIST.length + 1), f.label]));
+  const list = all.filter((f) => !f.key.startsWith(`${LIST}.`));
+  const hasPropertyList = list.some((f) => f.key === LIST);
+
   // Fill in what the site knows (and saved defaults) without overwriting anything typed by hand.
   useEffect(() => {
     if (!fields.data) return;
     onChange((prev) => {
       const next = { ...prev };
-      for (const f of fields.data) if (!edited.current.has(f.key)) next[f.key] = f.value;
+      for (const f of list) {
+        if (f.key === LIST) {
+          const existing = parseRows(prev[LIST]);
+          const merged = parseRows(f.value).map((row) => {
+            const old = existing.find((e) => e._id === row._id);
+            return old ? { ...row, ...Object.fromEntries(Object.entries(old).filter(([, v]) => v)) } : row;
+          });
+          next[LIST] = JSON.stringify([...merged, ...existing.filter((e) => e._id?.startsWith("manual-"))]);
+        } else if (!edited.current.has(f.key)) {
+          next[f.key] = f.value;
+        }
+      }
       return next;
     });
+    if (!autoAsked.current && askLabel && autoAskGroups.length) {
+      autoAsked.current = true;
+      const blanks = list.filter((f) => !f.value && isAskable(f.key) && autoAskGroups.includes(fieldSpec(f.key).group)).map((f) => f.key);
+      if (blanks.length) onAskedChange(Array.from(new Set([...asked, ...blanks])));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields.data]);
 
@@ -258,9 +409,11 @@ export default function TemplateFieldsForm({
     edited.current.add(key);
     onChange((prev) => ({ ...prev, [key]: value }));
   };
+  const toggleAsk = (key: string) => onAskedChange(asked.includes(key) ? asked.filter((k) => k !== key) : [...asked, key]);
 
-  const list = fields.data ?? [];
-  const filled = list.filter((f) => values[f.key]?.trim()).length;
+  const rows = parseRows(values[LIST]);
+  const isFilled = (key: string) => (key === LIST ? rows.length > 0 : !!values[key]?.trim()) || asked.includes(key);
+  const filled = list.filter((f) => isFilled(f.key)).length;
   const grouped = useMemo(() => {
     const map = new Map<FieldGroup, Field[]>();
     for (const f of list) {
@@ -268,8 +421,15 @@ export default function TemplateFieldsForm({
       map.set(g, [...(map.get(g) ?? []), f]);
     }
     return FIELD_GROUPS.filter((g) => map.has(g)).map((g) => ({ group: g, fields: map.get(g)! }));
-  }, [list]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields.data]);
   const canSaveDefaults = list.some((f) => isDefaultable(f.key));
+  const usesSingleProperty = list.some((f) => /^(property_|unit_number)/.test(f.key));
+
+  const previewValues = () => ({
+    ...values,
+    ...Object.fromEntries(asked.map((k) => [k, `[${askLabel ?? "Signer"} fills in]`])),
+  });
 
   const toggleGroup = (g: FieldGroup) =>
     setOpenGroups((prev) => {
@@ -287,13 +447,19 @@ export default function TemplateFieldsForm({
             <span className="inline-block w-2.5 h-2.5 rounded-sm bg-[#C9A84C]/30 border border-[#C9A84C]/60 align-middle mr-1" />from the site
             <span className="inline-block w-2.5 h-2.5 rounded-sm bg-blue-100 border border-blue-200 align-middle ml-3 mr-1" />your saved default
             <span className="inline-block w-2.5 h-2.5 rounded-sm bg-white border border-amber-300 align-middle ml-3 mr-1" />still blank
+            {askLabel && (
+              <>
+                <span className="inline-block w-2.5 h-2.5 rounded-sm bg-gray-100 border border-gray-300 align-middle ml-3 mr-1" />
+                {askLabel} fills in
+              </>
+            )}
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
           {canSaveDefaults && (
             <button
               type="button"
-              onClick={() => saveDefaults.mutate({ templateId, values })}
+              onClick={() => saveDefaults.mutate({ templateId, values: Object.fromEntries(Object.entries(values).filter(([k]) => !asked.includes(k))) })}
               disabled={saveDefaults.isPending || !fields.data}
               title="Remember fees and terms so they pre-fill every time you send this template"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -303,7 +469,7 @@ export default function TemplateFieldsForm({
           )}
           <button
             type="button"
-            onClick={() => preview.mutate({ templateId, values })}
+            onClick={() => preview.mutate({ templateId, values: previewValues() })}
             disabled={preview.isPending || !fields.data}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
@@ -312,7 +478,7 @@ export default function TemplateFieldsForm({
         </div>
       </div>
 
-      {(party.kind === "none" || party.kind === "owner") && (
+      {usesSingleProperty && (party.kind === "none" || party.kind === "owner") && (
         <div>
           <label className={labelCls}>Use property details from</label>
           <select className={inputClass("filled")} value={contextProperty} onChange={(e) => setContextProperty(e.target.value)}>
@@ -324,6 +490,13 @@ export default function TemplateFieldsForm({
             ))}
           </select>
         </div>
+      )}
+
+      {askLabel && asked.length > 0 && (
+        <p className="text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2">
+          <UserRound size={12} className="inline mr-1 -mt-0.5" />
+          {askLabel} will fill in {asked.length} detail{asked.length === 1 ? "" : "s"} before signing, so signing will go in order.
+        </p>
       )}
 
       {!ready ? (
@@ -341,7 +514,7 @@ export default function TemplateFieldsForm({
               <div className="h-full bg-[#C9A84C] transition-all" style={{ width: `${Math.round((filled / list.length) * 100)}%` }} />
             </div>
             <span className="text-xs font-semibold text-gray-600 whitespace-nowrap">
-              {filled} of {list.length} filled
+              {filled} of {list.length} ready
             </span>
             <label className="inline-flex items-center gap-1.5 text-xs text-gray-600 whitespace-nowrap">
               <input type="checkbox" checked={onlyBlank} onChange={(e) => setOnlyBlank(e.target.checked)} /> Only blanks
@@ -349,10 +522,11 @@ export default function TemplateFieldsForm({
           </div>
 
           {grouped.map(({ group, fields: groupFields }) => {
-            const visible = onlyBlank ? groupFields.filter((f) => !values[f.key]?.trim()) : groupFields;
+            const visible = onlyBlank ? groupFields.filter((f) => !isFilled(f.key)) : groupFields;
             if (!visible.length) return null;
             const open = openGroups.has(group) || onlyBlank;
-            const groupFilled = groupFields.filter((f) => values[f.key]?.trim()).length;
+            const groupFilled = groupFields.filter((f) => isFilled(f.key)).length;
+            const askableBlanks = askLabel ? groupFields.filter((f) => isAskable(f.key) && !values[f.key]?.trim() && !asked.includes(f.key)) : [];
             return (
               <div key={group} className="bg-white/70 rounded-lg border border-gray-200">
                 <button type="button" onClick={() => toggleGroup(group)} className="w-full flex items-center justify-between px-3 py-2 text-left">
@@ -363,27 +537,67 @@ export default function TemplateFieldsForm({
                   </span>
                 </button>
                 {open && (
-                  <div className="grid sm:grid-cols-2 gap-3 px-3 pb-3">
-                    {visible.map((f) => {
-                      const spec = fieldSpec(f.key);
-                      const value = values[f.key] ?? "";
-                      const untouched = !edited.current.has(f.key) && value === f.value && !!value;
-                      const state = !value.trim() ? "blank" : untouched && f.source ? f.source : "filled";
-                      return (
-                        <div key={f.key} className={spec.kind === "longtext" ? "sm:col-span-2" : undefined}>
-                          <label className="block text-xs font-semibold text-gray-600 mb-1">
-                            {f.label} <span className="font-mono text-[10px] text-gray-400">{"{{" + f.key + "}}"}</span>
-                          </label>
-                          <FieldInput field={f} spec={spec} value={value} cls={inputClass(state)} onChange={(v) => set(f.key, v)} />
-                          <Helpers fieldKey={f.key} values={values} set={set} />
-                        </div>
-                      );
-                    })}
+                  <div className="px-3 pb-3 space-y-2">
+                    {askableBlanks.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => onAskedChange([...asked, ...askableBlanks.map((f) => f.key)])}
+                        className="text-xs font-semibold text-[#8a6d1f] hover:underline"
+                      >
+                        Ask {askLabel} to fill in the {askableBlanks.length} blank {group.toLowerCase()} details
+                      </button>
+                    )}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {visible.map((f) => {
+                        if (f.key === LIST) {
+                          return (
+                            <PropertiesEditor
+                              key={f.key}
+                              columns={columns}
+                              labels={columnLabels}
+                              rows={rows}
+                              onRowsChange={(next) => onChange((prev) => ({ ...prev, [LIST]: JSON.stringify(next) }))}
+                              onPickProperties={(ids) => setPickedProperties(ids)}
+                            />
+                          );
+                        }
+                        const spec = fieldSpec(f.key);
+                        const value = values[f.key] ?? "";
+                        const isAsked = asked.includes(f.key);
+                        const untouched = !edited.current.has(f.key) && value === f.value && !!value;
+                        const state = !value.trim() ? "blank" : untouched && f.source ? f.source : "filled";
+                        return (
+                          <div key={f.key} className={spec.kind === "longtext" ? "sm:col-span-2" : undefined}>
+                            <div className="flex items-baseline justify-between gap-2 mb-1">
+                              <label className="block text-xs font-semibold text-gray-600">
+                                {f.label} <span className="font-mono text-[10px] text-gray-400">{"{{" + f.key + "}}"}</span>
+                              </label>
+                              {askLabel && isAskable(f.key) && (
+                                <button type="button" onClick={() => toggleAsk(f.key)} className="text-[11px] font-semibold text-[#8a6d1f] hover:underline whitespace-nowrap">
+                                  {isAsked ? "I'll fill it in" : `Ask ${askLabel}`}
+                                </button>
+                              )}
+                            </div>
+                            <FieldInput
+                              fieldKey={f.key}
+                              spec={spec}
+                              value={value}
+                              cls={isAsked ? inputClass("filled") : inputClass(state)}
+                              onChange={(v) => set(f.key, v)}
+                              disabled={isAsked}
+                              placeholder={isAsked ? `${askLabel} fills this in` : undefined}
+                            />
+                            {!isAsked && <Helpers fieldKey={f.key} values={values} set={set} />}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
+          {hasPropertyList && !rows.length && <p className="text-xs text-amber-700">Add at least one property to the properties list.</p>}
         </>
       )}
 
@@ -393,7 +607,7 @@ export default function TemplateFieldsForm({
             <div className="flex items-center justify-between p-4 border-b">
               <div>
                 <h2 className="text-lg font-bold text-[#0A1628]">Preview</h2>
-                <p className="text-sm text-gray-500">This is exactly what signers will see</p>
+                <p className="text-sm text-gray-500">This is exactly what signers will see{asked.length ? ` (bracketed details are filled in by ${askLabel})` : ""}</p>
               </div>
               <button type="button" onClick={() => setPreviewUrl(null)} className="text-gray-400 hover:text-gray-600" aria-label="Close preview">
                 <X size={20} />

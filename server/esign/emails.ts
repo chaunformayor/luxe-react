@@ -21,7 +21,7 @@ const note = (html: string) =>
   `<div style="background:#f8f9fa;border-left:4px solid #C9A84C;padding:14px 18px;border-radius:0 6px 6px 0;margin:0 0 20px;color:#374151;font-size:14px;line-height:1.6;white-space:pre-wrap;">${html}</div>`;
 const small = (html: string) => `<p style="margin:16px 0 0;color:#9ca3af;font-size:12px;line-height:1.5;">${html}</p>`;
 
-type Invite = { to: string; name: string; title: string; token: string; senderName: string; message?: string | null };
+type Invite = { to: string; name: string; title: string; token: string; senderName: string; message?: string | null; fillsDetails?: boolean };
 
 export async function sendSigningInvite(i: Invite, reminder = false) {
   const body = [
@@ -32,7 +32,8 @@ export async function sendSigningInvite(i: Invite, reminder = false) {
         : `${escapeHtml(i.senderName)} at Luxe Property Solutions sent you <strong>${escapeHtml(i.title)}</strong> to review and sign electronically.`
     ),
     i.message ? note(escapeHtml(i.message)) : "",
-    emailButton(signingUrl(i.token), "Review & Sign"),
+    i.fillsDetails ? p("First you'll fill in a few details (like your contact and insurance information); then you'll review the finished document and sign.") : "",
+    emailButton(signingUrl(i.token), i.fillsDetails ? "Fill In & Sign" : "Review & Sign"),
     small("This link is unique to you, so please don't forward it. Signing takes about a minute on a phone or computer. Questions? Just reply to this email."),
   ].join("");
 

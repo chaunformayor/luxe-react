@@ -12,7 +12,9 @@ import {
 import * as nc from "../nextcloud";
 import { FOLDERS, createDocumentRecord, getOwnerParty, getPropertyParty, getTenantParty, requireDb } from "../documentsRouter";
 import { buildSignedPdf, inspectPdf, sha256, validateSignaturePng } from "./pdf";
-import { docxToPdf, extractFields, fillDocx } from "./docx";
+import { PROPERTY_LIST, docxToPdf, extractFields, fillDocx } from "./docx";
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 import { labelFor, resolveFieldValues, type FieldContext } from "./fields";
 import { isDefaultable } from "@shared/templateFields";
 import {
@@ -210,37 +212,65 @@ export type CreateInput = PartyLinks & {
   message?: string;
   /** Values for a Word template's {{placeholders}}. */
   fieldValues?: Record<string, string>;
+  /** Placeholders the first signer fills in on the signing page. */
+  signerFields?: string[];
 };
 
 export async function createSignatureRequest(input: CreateInput, admin: { id: string; name: string | null; email: string | null }) {
   const db = await requireDb();
 
   let templateId: string | null = null;
-  let bytes: Uint8Array;
+  let template: Awaited<ReturnType<typeof activeTemplate>> | null = null;
   if (input.source.kind === "template") {
-    const template = await activeTemplate(input.source.templateId);
+    template = await activeTemplate(input.source.templateId);
     templateId = template.id;
-    bytes =
-      template.format === "docx"
-        ? await renderTemplatePdf(template, input.fieldValues ?? {})
-        : await nc.downloadByFileId(template.nextcloudFileId);
-  } else {
-    bytes = await nc.downloadByFileId(input.source.fileId);
   }
 
-  const { pageCount } = await inspectPdf(bytes);
+  // Fields the first signer fills in themselves (Word templates only; never the properties list).
+  const templateFields = new Set(template?.format === "docx" ? template.fields ?? [] : []);
+  const signerFields = (input.signerFields ?? []).filter((k) => templateFields.has(k) && !k.startsWith(PROPERTY_LIST));
+  const sequential = signerFields.length ? true : input.sequential;
+  const fieldValues = Object.fromEntries(Object.entries(input.fieldValues ?? {}).filter(([k]) => !signerFields.includes(k)));
 
-  // Freeze a private copy so later edits to a template or shared file can't change what was signed.
-  let source: { fileId: string; path: string };
-  if (input.source.kind === "upload") {
-    source = { fileId: input.source.fileId, path: nc.normalizePath(input.source.path) };
+  let source: { fileId: string; path: string; sha256: string; pageCount: number } | null = null;
+  let sourceDocxFileId: string | null = null;
+
+  if (template && signerFields.length) {
+    // The PDF can't exist until the signer adds their details — freeze the Word file instead.
+    const docx = await nc.downloadByFileId(template.nextcloudFileId);
+    const copy = await nc.uploadFile(nc.joinPath(FOLDERS.esign, `${today()} ${nc.safeName(input.title)}.docx`), docx, DOCX_MIME);
+    sourceDocxFileId = copy.fileId;
   } else {
-    const copy = await nc.uploadFile(nc.joinPath(FOLDERS.esign, `${today()} ${nc.safeName(input.title)}.pdf`), bytes, "application/pdf");
-    source = { fileId: copy.fileId, path: copy.path };
+    let bytes: Uint8Array;
+    if (template) {
+      bytes = template.format === "docx" ? await renderTemplatePdf(template, fieldValues) : await nc.downloadByFileId(template.nextcloudFileId);
+    } else {
+      bytes = await nc.downloadByFileId((input.source as { fileId: string }).fileId);
+    }
+    const { pageCount } = await inspectPdf(bytes);
+    // Freeze a private copy so later edits to a template or shared file can't change what was signed.
+    if (input.source.kind === "upload") {
+      source = { fileId: input.source.fileId, path: nc.normalizePath(input.source.path), sha256: sha256(bytes), pageCount };
+    } else {
+      const copy = await nc.uploadFile(nc.joinPath(FOLDERS.esign, `${today()} ${nc.safeName(input.title)}.pdf`), bytes, "application/pdf");
+      source = { fileId: copy.fileId, path: copy.path, sha256: sha256(bytes), pageCount };
+    }
   }
 
   const id = newId("esr");
   const now = new Date();
+  const signerRows = input.signers.map((s, index) => ({
+    id: newId("ess"),
+    requestId: id,
+    name: s.name.trim(),
+    email: s.email.trim().toLowerCase(),
+    roleLabel: s.roleLabel?.trim() || null,
+    signOrder: sequential ? index + 1 : 1,
+    token: randomBytes(32).toString("base64url"),
+    status: "waiting" as const,
+    createdAt: now,
+  }));
+
   await db.insert(signatureRequests).values({
     id,
     title: input.title.trim(),
@@ -249,12 +279,16 @@ export async function createSignatureRequest(input: CreateInput, admin: { id: st
     status: "sent",
     message: input.message?.trim() || null,
     templateId,
-    sourcePath: source.path,
-    sourceFileId: source.fileId,
-    sourceSha256: sha256(bytes),
-    sourcePageCount: pageCount,
+    sourcePath: source?.path ?? null,
+    sourceFileId: source?.fileId ?? null,
+    sourceSha256: source?.sha256 ?? null,
+    sourcePageCount: source?.pageCount ?? null,
+    fieldValues: template?.format === "docx" ? fieldValues : null,
+    signerFields: signerFields.length ? signerFields : null,
+    fieldsSignerId: signerFields.length ? signerRows[0].id : null,
+    sourceDocxFileId,
     folderPath: await defaultFolder(input.category, input, input.signers[0].name),
-    sequential: input.sequential,
+    sequential,
     tenantId: input.tenantId || null,
     ownerUserId: input.ownerUserId || null,
     propertyId: input.propertyId || null,
@@ -265,23 +299,50 @@ export async function createSignatureRequest(input: CreateInput, admin: { id: st
     updatedAt: now,
   });
 
-  await db.insert(signatureSigners).values(
-    input.signers.map((s, index) => ({
-      id: newId("ess"),
-      requestId: id,
-      name: s.name.trim(),
-      email: s.email.trim().toLowerCase(),
-      roleLabel: s.roleLabel?.trim() || null,
-      signOrder: input.sequential ? index + 1 : 1,
-      token: randomBytes(32).toString("base64url"),
-      status: "waiting" as const,
-      createdAt: now,
-    }))
-  );
+  await db.insert(signatureSigners).values(signerRows);
 
-  await logEvent(id, "created", { detail: `${input.signers.length} signer(s), ${input.sequential ? "in order" : "all at once"}` });
+  await logEvent(id, "created", {
+    detail: `${input.signers.length} signer(s), ${sequential ? "in order" : "all at once"}${signerFields.length ? `; ${signerFields.length} detail(s) for ${signerRows[0].name} to fill in` : ""}`,
+  });
   const { emailed, invited } = await sendNextSigners(id);
   return { id, emailed, invited };
+}
+
+/**
+ * The first signer adds their details: fill the frozen Word file with Luxe's values plus theirs,
+ * convert it, and freeze that PDF as the document everyone signs. Can be redone until they sign.
+ */
+export async function submitSignerDetails(token: string, values: Record<string, string>, audit: Audit) {
+  const { signer, request, state } = await requireSession(token);
+  const keys = request.signerFields ?? [];
+  if (state !== "ready" || request.fieldsSignerId !== signer.id || !keys.length || !request.sourceDocxFileId) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "These details can't be changed anymore." });
+  }
+  const clean = Object.fromEntries(keys.map((k) => [k, String(values[k] ?? "").trim().slice(0, 2000)]));
+  const missing = keys.filter((k) => !clean[k]);
+  if (missing.length) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: `Please fill in: ${missing.map(labelFor).join(", ")}. Type N/A if something doesn't apply.` });
+  }
+
+  const docx = await nc.downloadByFileId(request.sourceDocxFileId);
+  const pdf = await docxToPdf(fillDocx(docx, { ...(request.fieldValues ?? {}), ...clean }));
+  const { pageCount } = await inspectPdf(pdf);
+  const copy = await nc.uploadFile(nc.joinPath(FOLDERS.esign, `${today()} ${nc.safeName(request.title)}.pdf`), pdf, "application/pdf");
+
+  const db = await requireDb();
+  await db
+    .update(signatureRequests)
+    .set({
+      sourcePath: copy.path,
+      sourceFileId: copy.fileId,
+      sourceSha256: sha256(pdf),
+      sourcePageCount: pageCount,
+      signerFieldValues: clean,
+      updatedAt: new Date(),
+    })
+    .where(eq(signatureRequests.id, request.id));
+  await logEvent(request.id, "details_provided", { signerId: signer.id, audit, detail: keys.join(", ") });
+  return publicSession(token);
 }
 
 async function emailSigner(request: SignatureRequest, signer: SignatureSigner, reminder: boolean) {
@@ -294,6 +355,7 @@ async function emailSigner(request: SignatureRequest, signer: SignatureSigner, r
         token: signer.token,
         senderName: request.createdByName || "Luxe Property Solutions",
         message: request.message,
+        fillsDetails: request.fieldsSignerId === signer.id && !request.sourceFileId,
       },
       reminder
     );
@@ -455,6 +517,13 @@ export async function publicSession(token: string) {
     message: request.message,
     senderName: request.createdByName || "Luxe Property Solutions",
     pageCount: request.sourcePageCount,
+    // The first signer may owe some details before there's a document to show.
+    needsDetails: state === "ready" && request.fieldsSignerId === signer.id && !request.sourceFileId,
+    canEditDetails: state === "ready" && request.fieldsSignerId === signer.id && !!request.signerFields?.length,
+    detailFields:
+      request.fieldsSignerId === signer.id
+        ? (request.signerFields ?? []).map((key) => ({ key, label: labelFor(key), value: request.signerFieldValues?.[key] ?? "" }))
+        : [],
     signer: { name: signer.name, email: signer.email, roleLabel: signer.roleLabel, status: signer.status, declinedByMe: signer.status === "declined" },
     signers: signers.map((s) => ({ name: s.name, roleLabel: s.roleLabel, status: s.status, isMe: s.id === signer.id })),
   };
@@ -475,6 +544,7 @@ export async function submitSignature(
 ) {
   const { signer, request, state } = await requireSession(token);
   if (state !== "ready") throw new TRPCError({ code: "BAD_REQUEST", message: "This document can't be signed anymore." });
+  if (!request.sourceFileId) throw new TRPCError({ code: "BAD_REQUEST", message: "Please fill in your details first." });
   if (!input.consent) throw new TRPCError({ code: "BAD_REQUEST", message: "Please agree to sign electronically." });
   try {
     await validateSignaturePng(input.signatureImage);

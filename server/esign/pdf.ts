@@ -147,6 +147,7 @@ const EVENT_LABELS: Record<string, string> = {
   email_failed: "Signing email could not be sent",
   link_copied: "Signing link copied by Luxe staff",
   viewed: "Document opened",
+  details_provided: "Filled in their details",
   consented: "Agreed to use electronic records and signatures",
   signed: "Signed",
   declined: "Declined to sign",

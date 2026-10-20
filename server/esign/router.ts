@@ -8,7 +8,7 @@ import { STANDARD_FIELDS } from "./fields";
 
 const fileId = z.string().regex(/^\d+$/);
 const token = z.string().min(40).max(64);
-const fieldValues = z.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.string().max(5000));
+const fieldValues = z.record(z.string().regex(/^[a-z][a-z0-9_]*$/), z.string().max(20000));
 
 function auditFrom(req: Request): esign.Audit {
   const forwarded = req.headers["x-forwarded-for"];
@@ -44,7 +44,15 @@ export const esignRouter = router({
   standardFields: adminProcedure.query(() => STANDARD_FIELDS),
 
   templateFields: adminProcedure
-    .input(z.object({ templateId: z.string(), tenantId: z.string().optional(), ownerUserId: z.string().optional(), propertyId: z.string().optional() }))
+    .input(
+      z.object({
+        templateId: z.string(),
+        tenantId: z.string().optional(),
+        ownerUserId: z.string().optional(),
+        propertyId: z.string().optional(),
+        propertyIds: z.array(z.string()).max(100).optional(),
+      })
+    )
     .query(({ input: { templateId, ...ctx } }) => esign.templateFieldsFor(templateId, ctx)),
 
   saveFieldDefaults: adminProcedure
@@ -92,6 +100,7 @@ export const esignRouter = router({
         ownerUserId: z.string().optional(),
         propertyId: z.string().optional(),
         fieldValues: fieldValues.optional(),
+        signerFields: z.array(z.string().regex(/^[a-z][a-z0-9_]*$/)).max(100).optional(),
       })
     )
     .mutation(({ input, ctx }) => esign.createSignatureRequest(input, { id: ctx.user.id, name: ctx.user.name, email: ctx.user.email })),
@@ -127,6 +136,10 @@ export const signRouter = router({
     await esign.markViewed(input.token, auditFrom(ctx.req));
     return { success: true };
   }),
+
+  submitDetails: publicProcedure
+    .input(z.object({ token, values: z.record(z.string(), z.string().max(2000)) }))
+    .mutation(({ input, ctx }) => esign.submitSignerDetails(input.token, input.values, auditFrom(ctx.req))),
 
   submit: publicProcedure
     .input(

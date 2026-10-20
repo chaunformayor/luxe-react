@@ -31,24 +31,52 @@ function load(docx: Uint8Array, modules: any[] = []) {
   }
 }
 
-/** Placeholder names in the order they first appear. */
+/** The one supported repeating section: {{#properties}}…{{/properties}} (one row per property). */
+export const PROPERTY_LIST = "properties";
+
+/**
+ * Placeholder names in the order they first appear. A properties list is reported as
+ * "properties" followed by "properties.<column>" for each placeholder inside it.
+ */
 export function extractFields(docx: Uint8Array): string[] {
   const inspect = new InspectModule();
   load(docx, [inspect]);
-  const names = Object.keys(inspect.getAllTags()).map((n) => n.trim());
-  const bad = names.filter((n) => !FIELD_NAME.test(n));
+  const fields: string[] = [];
+  for (const [rawName, inner] of Object.entries(inspect.getAllTags())) {
+    const name = rawName.trim();
+    const columns = Object.keys((inner as Record<string, unknown>) ?? {}).map((c) => c.trim());
+    if (!columns.length) {
+      fields.push(name);
+      continue;
+    }
+    if (name !== PROPERTY_LIST) {
+      throw new Error(`Only a {{#properties}}…{{/properties}} list is supported in templates (found {{#${name}}}).`);
+    }
+    fields.push(PROPERTY_LIST, ...columns.map((c) => `${PROPERTY_LIST}.${c}`));
+  }
+  const bad = fields.map((f) => f.replace(`${PROPERTY_LIST}.`, "")).filter((n) => !FIELD_NAME.test(n));
   if (bad.length) {
     throw new Error(
       `Placeholder names must be lowercase letters, numbers and underscores (like {{tenant_name}}). Fix: ${bad.map((b) => `{{${b}}}`).join(", ")}`
     );
   }
-  return Array.from(new Set(names));
+  return Array.from(new Set(fields));
 }
 
+/** Values are strings; the properties list travels as a JSON array of row objects. */
 export function fillDocx(docx: Uint8Array, values: Record<string, string>): Buffer {
+  const data: Record<string, unknown> = { ...values };
+  if (PROPERTY_LIST in values) {
+    try {
+      const rows = JSON.parse(values[PROPERTY_LIST] || "[]");
+      data[PROPERTY_LIST] = Array.isArray(rows) ? rows : [];
+    } catch {
+      data[PROPERTY_LIST] = [];
+    }
+  }
   const doc = load(docx);
   try {
-    doc.render(values);
+    doc.render(data);
   } catch (err) {
     throw readableTemplateError(err);
   }

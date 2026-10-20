@@ -1,5 +1,6 @@
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { createPool } from "mysql2";
 import { InsertUser, users, newsletterSubscribers } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -9,7 +10,10 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      // Railway's proxy silently drops connections that sit idle, and a query sent on one hangs
+      // forever. Close idle connections after a minute so a dead one is never reused. (mysql2
+      // only runs its idle cleanup when maxIdle is below connectionLimit.)
+      _db = drizzle(createPool({ uri: process.env.DATABASE_URL, connectionLimit: 10, maxIdle: 5, idleTimeout: 60_000 }));
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
