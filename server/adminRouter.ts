@@ -40,7 +40,7 @@ import {
   deleteBlogPost,
 } from "./db";
 import { hashPassword } from "./authRoutes";
-import { sendOwnerWelcomeEmail, sendTestEmail } from "./email";
+import { deliver, sendOwnerWelcomeEmail, sendTestEmail } from "./email";
 
 // Admin role check middleware
 const adminProcedure = protectedProcedure.use(async (opts) => {
@@ -230,12 +230,12 @@ export const adminRouter = router({
         mustChangePassword: true,
       });
 
-      if (input.role === "owner") {
-        sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword })
-          .catch(err => console.error("[Email] Failed to send owner welcome email:", err));
-      }
+      const delivery =
+        input.role === "owner"
+          ? await deliver("Owner welcome email", () => sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword }))
+          : null;
 
-      return { id, tempPassword, success: true };
+      return { id, tempPassword, success: true, emailed: delivery?.emailed ?? null, emailError: delivery?.emailError ?? null };
     }),
 
   // Owners (kept for backwards compat)
@@ -257,10 +257,9 @@ export const adminRouter = router({
         mustChangePassword: true,
       });
 
-      sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword })
-        .catch(err => console.error("[Email] Failed to send owner welcome email:", err));
+      const delivery = await deliver("Owner welcome email", () => sendOwnerWelcomeEmail({ to: input.email, name: input.name, tempPassword }));
 
-      return { id, success: true };
+      return { id, success: true, ...delivery };
     }),
 
   // Units

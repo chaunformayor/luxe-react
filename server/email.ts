@@ -70,6 +70,23 @@ export async function sendEmail(opts: SendOpts): Promise<boolean> {
   return true;
 }
 
+export type Delivery = { emailed: boolean; emailError: string | null };
+
+/**
+ * Sends an email that shouldn't block the action it belongs to, and reports what happened.
+ * Always await this: on Vercel the function is frozen once the response goes out, so an
+ * un-awaited send is silently cut off.
+ */
+export async function deliver(label: string, send: () => Promise<boolean>): Promise<Delivery> {
+  try {
+    if (await send()) return { emailed: true, emailError: null };
+    return { emailed: false, emailError: "Email isn't configured on the server." };
+  } catch (err: any) {
+    console.error(`[Email] ${label} failed:`, err);
+    return { emailed: false, emailError: err?.message ?? "Unknown error" };
+  }
+}
+
 export async function sendTestEmail(to: string): Promise<{
   apiKeySet: boolean;
   fromEmail: string;
@@ -146,7 +163,7 @@ export async function sendOwnerWelcomeEmail({
   name: string;
   tempPassword: string;
 }) {
-  await sendEmail({
+  return sendEmail({
     to,
     toName: name,
     subject: "Welcome to Your Luxe Owner Portal",
@@ -211,7 +228,7 @@ export async function sendWelcomeEmail({
   tempPassword: string;
   unitAddress: string;
 }) {
-  await sendEmail({
+  return sendEmail({
     to,
     toName: name,
     subject: "Welcome to Your Luxe Tenant Portal",
@@ -289,7 +306,7 @@ export async function sendContactNotificationEmail({
   phone = phone ? escapeHtml(phone) : phone;
   propertyType = propertyType ? escapeHtml(propertyType) : propertyType;
   message = escapeHtml(message);
-  await sendEmail({
+  return sendEmail({
     to: adminEmail,
     toName: "Luxe Property Solutions",
     subject: `New Contact Form Submission from ${subjectName}`,

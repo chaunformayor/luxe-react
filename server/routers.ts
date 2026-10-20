@@ -11,7 +11,7 @@ import { documentsRouter } from "./documentsRouter";
 import { esignRouter, signRouter } from "./esign/router";
 import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug, subscribeToNewsletter, getAllProperties } from "./db";
 import { notifyOwner } from "./_core/notification";
-import { sendContactNotificationEmail } from "./email";
+import { deliver, sendContactNotificationEmail } from "./email";
 
 export const appRouter = router({
   system: systemRouter,
@@ -121,14 +121,16 @@ export const appRouter = router({
             content: `New inquiry from ${input.name} (${input.email})\n\nMessage: ${input.message}`,
           }).catch(() => {});
 
-          // Email notification via Maileroo
-          sendContactNotificationEmail({
-            fromName: input.name,
-            fromEmail: input.email,
-            phone: input.phone ?? undefined,
-            propertyType: input.propertyType ?? undefined,
-            message: input.message,
-          }).catch(err => console.error("[Contact] Email notification failed:", err));
+          // Email notification via Maileroo (the inquiry is already saved if this fails)
+          await deliver("Contact notification email", () =>
+            sendContactNotificationEmail({
+              fromName: input.name,
+              fromEmail: input.email,
+              phone: input.phone ?? undefined,
+              propertyType: input.propertyType ?? undefined,
+              message: input.message,
+            })
+          );
 
           return {
             success: true,

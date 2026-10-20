@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import AdminLayout from "@/components/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,16 @@ function ApproveModal({
 
   const { data: units = [] } = trpc.application.admin.getAvailableUnits.useQuery();
   const approve = trpc.application.admin.approve.useMutation({
-    onSuccess: () => { onSuccess(); onClose(); },
+    onSuccess: (data) => {
+      if (data.emailed) toast.success(`Approved. A welcome email with portal login details was sent to ${app.email}.`);
+      else
+        toast.warning("Approved, but the welcome email couldn't be sent. Use Reset password in Admin → Users to get new login details to share.", {
+          description: data.emailError ?? undefined,
+          duration: 15000,
+        });
+      onSuccess();
+      onClose();
+    },
     onError: (e) => setError(e.message),
   });
 

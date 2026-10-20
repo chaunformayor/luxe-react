@@ -14,7 +14,7 @@ import {
   getAllUnits,
 } from "./db";
 import { hashPassword } from "./authRoutes";
-import { sendWelcomeEmail } from "./email";
+import { deliver, sendWelcomeEmail } from "./email";
 import { notifyOwner } from "./_core/notification";
 
 function getStripe() {
@@ -324,15 +324,17 @@ export const applicationRouter = router({
           ? `Unit ${unit.unitNumber} — ${unit.propertyAddress}`
           : "Your assigned unit";
 
-        // Send welcome email (non-blocking — don't fail approval if email fails)
-        sendWelcomeEmail({
-          to: app.email,
-          name: `${app.firstName} ${app.lastName}`,
-          tempPassword,
-          unitAddress,
-        }).catch(err => console.error("[Email] Failed to send welcome email:", err));
+        // Welcome email: a failure doesn't undo the approval, but the admin is told.
+        const delivery = await deliver("Tenant welcome email", () =>
+          sendWelcomeEmail({
+            to: app.email,
+            name: `${app.firstName} ${app.lastName}`,
+            tempPassword,
+            unitAddress,
+          })
+        );
 
-        return { success: true };
+        return { success: true, ...delivery };
       }),
 
     getAvailableUnits: adminProcedure.query(async () => {

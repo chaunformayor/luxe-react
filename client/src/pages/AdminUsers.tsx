@@ -19,11 +19,14 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("owner");
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ tempPassword: string } | null>(null);
+  const [created, setCreated] = useState<{ tempPassword: string; emailed: boolean | null; emailError: string | null } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const createUser = trpc.admin.createUserAccount.useMutation({
-    onSuccess: (data) => { setCreated({ tempPassword: data.tempPassword }); onSuccess(); },
+    onSuccess: (data) => {
+      setCreated({ tempPassword: data.tempPassword, emailed: data.emailed, emailError: data.emailError });
+      onSuccess();
+    },
     onError: (e) => setError(e.message),
   });
 
@@ -46,8 +49,17 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           <div className="p-5 space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800">
               Account created for <strong>{name}</strong> ({role}).
-              {role === "owner" ? " A welcome email has been sent." : " Share the temporary password below."}
+              {created.emailed
+                ? ` A welcome email with their login details was sent to ${email}.`
+                : created.emailed === null && " Share the temporary password below."}
             </div>
+            {created.emailed === false && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+                <strong>The welcome email couldn't be sent.</strong> Copy the temporary password below and send it to them
+                yourself.
+                {created.emailError && <span className="block mt-1 text-xs text-amber-700">Reason: {created.emailError}</span>}
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-gray-500 mb-1.5">Temporary Password</label>
               <div className="flex gap-2">
