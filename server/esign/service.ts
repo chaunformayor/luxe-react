@@ -14,6 +14,7 @@ import { FOLDERS, createDocumentRecord, getOwnerParty, getPropertyParty, getTena
 import { buildSignedPdf, inspectPdf, sha256, validateSignaturePng } from "./pdf";
 import { docxToPdf, extractFields, fillDocx } from "./docx";
 import { labelFor, resolveFieldValues, type FieldContext } from "./fields";
+import { isDefaultable } from "@shared/templateFields";
 import {
   adminRecipient,
   sendCompletedCopy,
@@ -148,7 +149,21 @@ async function activeTemplate(templateId: string) {
 export async function templateFieldsFor(templateId: string, ctx: FieldContext) {
   const template = await activeTemplate(templateId);
   const known = await resolveFieldValues(ctx);
-  return (template.fields ?? []).map((key) => ({ key, label: labelFor(key), value: known[key] ?? "", known: key in known }));
+  const defaults = template.fieldDefaults ?? {};
+  return (template.fields ?? []).map((key) => {
+    const source = key in known ? ("site" as const) : defaults[key] ? ("default" as const) : null;
+    return { key, label: labelFor(key), value: known[key] ?? defaults[key] ?? "", source };
+  });
+}
+
+/** Remembers policy-type values (fees, terms) so they pre-fill next time this template is sent. */
+export async function saveFieldDefaults(templateId: string, values: Record<string, string>) {
+  const template = await activeTemplate(templateId);
+  const allowed = new Set((template.fields ?? []).filter(isDefaultable));
+  const fieldDefaults = Object.fromEntries(Object.entries(values).filter(([k, v]) => allowed.has(k) && v.trim()));
+  const db = await requireDb();
+  await db.update(documentTemplates).set({ fieldDefaults, updatedAt: new Date() }).where(eq(documentTemplates.id, templateId));
+  return { saved: Object.keys(fieldDefaults) };
 }
 
 async function renderTemplatePdf(template: { nextcloudFileId: string }, values: Record<string, string>) {

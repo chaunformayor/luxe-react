@@ -212,6 +212,8 @@ export const documentTemplates = mysqlTable("documentTemplates", {
   // "docx" templates contain {{placeholders}} that are filled in each time they're sent.
   format: mysqlEnum("format", ["pdf", "docx"]).default("pdf").notNull(),
   fields: json("fields").$type<string[]>(),
+  // Values remembered for this template (e.g. standard fees), used when the site doesn't know better.
+  fieldDefaults: json("fieldDefaults").$type<Record<string, string>>(),
   active: boolean("active").default(true).notNull(),
   createdBy: varchar("createdBy", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow(),

@@ -25,7 +25,7 @@ import AdminLayout from "@/components/AdminLayout";
 import PartyPicker, { NO_PARTY, partyIds, useParties, type PartySelection } from "@/components/PartyPicker";
 import { trpc } from "@/lib/trpc";
 import { adminFileUrl, uploadToNextcloud } from "@/lib/nextcloudUpload";
-import PdfViewer from "@/components/PdfViewer";
+import TemplateFieldsForm, { type FieldValues } from "@/components/TemplateFieldsForm";
 import { SIGNATURE_CATEGORY_LABELS, type SignatureCategory } from "@shared/documents";
 
 type SendCategory = Exclude<SignatureCategory, "w9">;
@@ -106,131 +106,6 @@ async function copyText(text: string) {
   }
 }
 
-// ── Word template details ─────────────────────────────────────────────────────
-type FieldValues = Record<string, string>;
-
-function base64ToBlobUrl(base64: string) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-}
-
-function TemplateFields({
-  templateId,
-  party,
-  values,
-  onChange,
-}: {
-  templateId: string;
-  party: PartySelection;
-  values: FieldValues;
-  onChange: (update: (prev: FieldValues) => FieldValues) => void;
-}) {
-  const { properties, propertyLabel } = useParties();
-  const [contextProperty, setContextProperty] = useState("");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const edited = useRef(new Set<string>());
-  const ready = party.kind === "none" || !!party.id;
-  const fields = trpc.esign.templateFields.useQuery(
-    { templateId, ...partyIds(party), ...(contextProperty ? { propertyId: contextProperty } : {}) },
-    { enabled: ready }
-  );
-  const preview = trpc.esign.previewTemplate.useMutation({
-    onSuccess: (r) => setPreviewUrl(base64ToBlobUrl(r.pdfBase64)),
-    onError: (e) => toast.error(e.message),
-  });
-
-  // Fill in what the site knows, without overwriting anything typed by hand.
-  useEffect(() => {
-    if (!fields.data) return;
-    onChange((prev) => {
-      const next = { ...prev };
-      for (const f of fields.data) if (!edited.current.has(f.key)) next[f.key] = f.value;
-      return next;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields.data]);
-
-  useEffect(
-    () => () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    },
-    [previewUrl]
-  );
-
-  const showPropertyPicker = party.kind === "none" || party.kind === "owner";
-
-  return (
-    <div className="border border-[#C9A84C]/40 bg-[#C9A84C]/5 rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-[#0A1628]">Fill in the details</p>
-          <p className="text-xs text-gray-500">Highlighted fields came from the site. Change anything that's wrong.</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => preview.mutate({ templateId, values })}
-          disabled={preview.isPending || !fields.data}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 bg-white rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 shrink-0"
-        >
-          {preview.isPending ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />} Preview
-        </button>
-      </div>
-      {showPropertyPicker && (
-        <div>
-          <label className={labelCls}>Use property details from</label>
-          <select className={inputCls} value={contextProperty} onChange={(e) => setContextProperty(e.target.value)}>
-            <option value="">{party.kind === "owner" ? "— The owner's property (if they have just one) —" : "— No property —"}</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {propertyLabel(p)}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      {!ready ? (
-        <p className="text-sm text-gray-500">Choose who it's for above to fill in their details.</p>
-      ) : fields.isLoading ? (
-        <p className="text-sm text-gray-400">Loading details…</p>
-      ) : fields.error ? (
-        <p className="text-sm text-red-600">{fields.error.message}</p>
-      ) : !fields.data?.length ? (
-        <p className="text-sm text-gray-500">This template has no {"{{placeholders}}"}.</p>
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
-          {fields.data.map((f) => (
-            <div key={f.key}>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                {f.label} <span className="font-mono text-[10px] text-gray-400">{"{{" + f.key + "}}"}</span>
-              </label>
-              <input
-                className={
-                  f.known && f.value && values[f.key] === f.value
-                    ? inputCls.replace("bg-white", "bg-[#C9A84C]/10").replace("border-gray-300", "border-[#C9A84C]/60")
-                    : inputCls
-                }
-                value={values[f.key] ?? ""}
-                onChange={(e) => {
-                  edited.current.add(f.key);
-                  const v = e.target.value;
-                  onChange((prev) => ({ ...prev, [f.key]: v }));
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-      {previewUrl && (
-        <Modal title="Preview" subtitle="This is exactly what signers will see" onClose={() => setPreviewUrl(null)} wide>
-          <div className="max-h-[70vh] overflow-y-auto bg-gray-200/60 p-3 rounded-lg">
-            <PdfViewer url={previewUrl} />
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
 // ── New signature request ─────────────────────────────────────────────────────
 type SignerRow = { name: string; email: string; roleLabel: string };
 type Prefill = { fileId: string; name: string } | null;
@@ -265,7 +140,8 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
     setBlankConfirmed(false);
     const t = activeTemplates.find((x) => x.id === id);
     if (!t) return;
-    setTitle((prev) => prev || t.name);
+    // Follow the template's name unless the title was typed by hand.
+    setTitle((prev) => (!prev || activeTemplates.some((x) => x.name === prev) ? t.name : prev));
     setCategory(t.category as SendCategory);
     const roles = (t.signerRoles as string[] | null)?.length ? (t.signerRoles as string[]) : DEFAULT_ROLES[t.category as TemplateCategory];
     setSigners((prev) => {
@@ -427,7 +303,7 @@ function NewRequestModal({ prefill, onClose, onSent }: { prefill: Prefill; onClo
         <PartyPicker value={party} onChange={setParty} noneLabel="Nobody in the system" />
       </div>
 
-      {usesFields && <TemplateFields key={templateId} templateId={templateId} party={party} values={fieldValues} onChange={setFieldValues} />}
+      {usesFields && <TemplateFieldsForm key={templateId} templateId={templateId} party={party} values={fieldValues} onChange={setFieldValues} />}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">

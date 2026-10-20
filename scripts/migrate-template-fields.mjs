@@ -9,6 +9,7 @@ const conn = await mysql.createConnection(process.env.DATABASE_URL);
 for (const [column, definition] of [
   ["format", "ENUM('pdf','docx') NOT NULL DEFAULT 'pdf'"],
   ["fields", "JSON NULL"],
+  ["fieldDefaults", "JSON NULL"],
 ]) {
   const [rows] = await conn.execute(
     "SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'documentTemplates' AND COLUMN_NAME = ?",

@@ -47,6 +47,10 @@ export const esignRouter = router({
     .input(z.object({ templateId: z.string(), tenantId: z.string().optional(), ownerUserId: z.string().optional(), propertyId: z.string().optional() }))
     .query(({ input: { templateId, ...ctx } }) => esign.templateFieldsFor(templateId, ctx)),
 
+  saveFieldDefaults: adminProcedure
+    .input(z.object({ templateId: z.string(), values: fieldValues }))
+    .mutation(({ input }) => esign.saveFieldDefaults(input.templateId, input.values)),
+
   previewTemplate: adminProcedure
     .input(z.object({ templateId: z.string(), values: fieldValues }))
     .mutation(async ({ input }) => ({ pdfBase64: Buffer.from(await esign.previewTemplate(input.templateId, input.values)).toString("base64") })),
