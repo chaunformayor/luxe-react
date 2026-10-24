@@ -1,4 +1,5 @@
 import { mysqlEnum, mysqlTable, text, timestamp, varchar, int, bigint, decimal, boolean, json, mediumtext } from "drizzle-orm/mysql-core";
+import { PROPERTY_TYPE_VALUES, RENTAL_TYPE_VALUES } from "../shared/propertyKinds";
 
 /**
  * Core user table backing auth flow.
@@ -31,6 +32,8 @@ export const properties = mysqlTable("properties", {
   zipCode: varchar("zipCode", { length: 10 }).notNull(),
   price: decimal("price", { precision: 12, scale: 2 }).notNull(),
   type: mysqlEnum("type", ["Rent", "Sale"]).notNull(),
+  propertyType: mysqlEnum("propertyType", PROPERTY_TYPE_VALUES).notNull().default("single_family"),
+  rentalType: mysqlEnum("rentalType", RENTAL_TYPE_VALUES).notNull().default("long_term"),
   beds: int("beds").notNull(),
   baths: decimal("baths", { precision: 3, scale: 1 }).notNull(),
   sqft: int("sqft").notNull(),
@@ -54,6 +57,9 @@ export const units = mysqlTable("units", {
   propertyId: varchar("propertyId", { length: 64 }).notNull().references(() => properties.id),
   unitNumber: varchar("unitNumber", { length: 50 }).notNull(),
   rentAmount: decimal("rentAmount", { precision: 10, scale: 2 }).notNull(),
+  beds: int("beds"),
+  baths: decimal("baths", { precision: 3, scale: 1 }),
+  sqft: int("sqft"),
   status: mysqlEnum("status", ["vacant", "occupied", "maintenance"]).default("vacant"),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),

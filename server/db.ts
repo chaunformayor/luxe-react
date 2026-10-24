@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createPool } from "mysql2";
 import { InsertUser, users, newsletterSubscribers } from "../drizzle/schema";
+import { isMultifamily } from "../shared/propertyKinds";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -209,8 +210,16 @@ export async function deleteProperty(id: string) {
   if (!db) throw new Error("Database not available");
 
   try {
-    await db.delete(properties).where(eq(properties.id, id));
-  } catch (error) {
+    // Units go with the property; anything that points at a unit or the property blocks both.
+    await db.transaction(async (tx) => {
+      await tx.delete(units).where(eq(units.propertyId, id));
+      await tx.delete(properties).where(eq(properties.id, id));
+    });
+  } catch (error: any) {
+    const code = error?.cause?.code ?? error?.code;
+    if (code === "ER_ROW_IS_REFERENCED_2" || code === "ER_ROW_IS_REFERENCED") {
+      throw new Error("This property has tenants, payments, documents, applications or requests attached, so it can't be deleted. Uncheck Active to hide it instead.");
+    }
     console.error("[Database] Failed to delete property:", error);
     throw error;
   }
@@ -489,6 +498,9 @@ export async function getAllUnits() {
       id: units.id,
       unitNumber: units.unitNumber,
       rentAmount: units.rentAmount,
+      beds: units.beds,
+      baths: units.baths,
+      sqft: units.sqft,
       status: units.status,
       propertyId: units.propertyId,
       propertyName: properties.name,
@@ -509,6 +521,9 @@ export async function createUnit(data: {
   propertyId: string;
   unitNumber: string;
   rentAmount: string;
+  beds?: number | null;
+  baths?: number | null;
+  sqft?: number | null;
   status?: "vacant" | "occupied" | "maintenance";
 }) {
   const db = await getDb();
@@ -520,11 +535,42 @@ export async function createUnit(data: {
     propertyId: data.propertyId,
     unitNumber: data.unitNumber,
     rentAmount: data.rentAmount,
+    beds: data.beds ?? null,
+    baths: data.baths == null ? null : String(data.baths),
+    sqft: data.sqft ?? null,
     status: data.status ?? "vacant",
     createdAt: new Date(),
     updatedAt: new Date(),
   });
   return id;
+}
+
+/**
+ * A multifamily building's beds, baths and sqft are the totals of its units, and so is its
+ * rent when it's rented by the month. Call after any unit change.
+ */
+export async function syncPropertyTotals(propertyId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [property] = await db.select().from(properties).where(eq(properties.id, propertyId)).limit(1);
+  if (!property || !isMultifamily(property.propertyType)) return;
+  const rows = await getUnitsByProperty(propertyId);
+  if (!rows.length) return;
+
+  const total = (values: (number | string | null)[]) => {
+    const present = values.filter((v) => v !== null && v !== "").map(Number);
+    return present.length ? present.reduce((a, b) => a + b, 0) : null;
+  };
+  const update: Record<string, unknown> = {};
+  const beds = total(rows.map((u) => u.beds));
+  const baths = total(rows.map((u) => u.baths));
+  const sqft = total(rows.map((u) => u.sqft));
+  if (beds !== null) update.beds = beds;
+  if (baths !== null) update.baths = baths.toFixed(1);
+  if (sqft !== null) update.sqft = sqft;
+  if (property.type === "Rent" && property.rentalType !== "short_term") update.price = (total(rows.map((u) => u.rentAmount)) ?? 0).toFixed(2);
+  if (Object.keys(update).length) await db.update(properties).set({ ...update, updatedAt: new Date() }).where(eq(properties.id, propertyId));
 }
 
 export async function updateUnit(id: string, data: Record<string, unknown>) {

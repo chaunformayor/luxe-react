@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { isMultifamily, priceSuffix, propertyTypeLabel } from "@shared/propertyKinds";
 
 type Filter = "all" | "Rent" | "Sale";
 
-function formatPrice(price: string | number, type: string) {
-  const n = Number(price);
+function formatPrice(p: any) {
+  // A multifamily for rent shows its lowest unit rent, not the building's total
+  if (p.type === "Rent" && isMultifamily(p.propertyType) && p.minUnitRent) {
+    return `From $${Number(p.minUnitRent).toLocaleString()}${priceSuffix(p.type, p.rentalType)}`;
+  }
+  const n = Number(p.price);
   if (!n) return "—";
-  return type === "Rent"
-    ? `$${n.toLocaleString()}/mo`
-    : `$${n.toLocaleString()}`;
+  return `$${n.toLocaleString()}${priceSuffix(p.type, p.rentalType)}`;
+}
+
+function listingBadge(p: any) {
+  if (p.type !== "Rent") return "For Sale";
+  if (p.rentalType === "short_term") return "Short-Term Stay";
+  if (p.rentalType === "mid_term") return "Furnished · 30+ Days";
+  return "For Rent";
 }
 
 export default function Properties() {
@@ -87,6 +97,9 @@ export default function Properties() {
                 const images = (() => { try { return JSON.parse(p.images || "[]"); } catch { return []; } })();
                 const firstImage = images[0] || null;
                 const isRent = p.type === "Rent";
+                // Applications are for leases; short-term stays are booked by inquiry
+                const canApply = isRent && p.rentalType !== "short_term";
+                const multifamily = isMultifamily(p.propertyType);
 
                 return (
                   <div key={p.id} className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-all group">
@@ -100,7 +113,7 @@ export default function Properties() {
                         </svg>
                       )}
                       <span className={`absolute top-3 left-3 text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full ${isRent ? "bg-[var(--luxe-gold)] text-[var(--luxe-navy)]" : "bg-[var(--luxe-navy)] text-white"}`}>
-                        {isRent ? "For Rent" : "For Sale"}
+                        {listingBadge(p)}
                       </span>
                       {p.featured && (
                         <span className="absolute top-3 right-3 text-xs font-semibold bg-white text-[var(--luxe-navy)] px-2.5 py-1 rounded-full shadow">
@@ -113,9 +126,13 @@ export default function Properties() {
                     <div className="p-6">
                       <div className="flex items-baseline gap-1 mb-1">
                         <span className="text-2xl font-bold text-[var(--luxe-navy)]" style={{ fontFamily: "var(--font-heading)" }}>
-                          {formatPrice(p.price, p.type)}
+                          {formatPrice(p)}
                         </span>
                       </div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--luxe-gold)] mb-1">
+                        {propertyTypeLabel(p.propertyType)}
+                        {multifamily && p.unitCount > 0 && ` · ${p.vacantUnits} of ${p.unitCount} units available`}
+                      </p>
 
                       <h3 className="font-bold text-[var(--luxe-navy)] mb-1 group-hover:text-[var(--luxe-gold)] transition-colors" style={{ fontFamily: "var(--font-heading)" }}>
                         {p.name}
@@ -157,17 +174,17 @@ export default function Properties() {
                             Inquire
                           </span>
                         </Link>
-                        {isRent && (
+                        {canApply && (
                           <Link href="/apply">
                             <span className="flex-1 block text-center py-2.5 px-4 bg-[var(--luxe-gold)] text-[var(--luxe-navy)] text-sm font-semibold rounded-lg cursor-pointer hover:bg-[var(--luxe-gold)]/90 transition-colors">
                               Apply Now
                             </span>
                           </Link>
                         )}
-                        {!isRent && (
+                        {!canApply && (
                           <Link href="/contact">
                             <span className="flex-1 block text-center py-2.5 px-4 bg-[var(--luxe-navy)] text-white text-sm font-semibold rounded-lg cursor-pointer hover:bg-[var(--luxe-navy)]/90 transition-colors">
-                              Schedule Tour
+                              {isRent ? "Check Availability" : "Schedule Tour"}
                             </span>
                           </Link>
                         )}

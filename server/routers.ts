@@ -9,7 +9,8 @@ import { tenantRouter } from "./tenantRouter";
 import { applicationRouter } from "./applicationRouter";
 import { documentsRouter } from "./documentsRouter";
 import { esignRouter, signRouter } from "./esign/router";
-import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug, subscribeToNewsletter, getAllProperties } from "./db";
+import { createInquiry, getPublishedBlogPosts, getPublishedBlogPostBySlug, subscribeToNewsletter, getAllProperties, getAllUnits } from "./db";
+import { isMultifamily } from "@shared/propertyKinds";
 import { notifyOwner } from "./_core/notification";
 import { deliver, sendContactNotificationEmail } from "./email";
 
@@ -37,7 +38,25 @@ export const appRouter = router({
   properties: router({
     getAll: publicProcedure.query(async () => {
       const all = await getAllProperties();
-      return all.filter((p: any) => p.active !== false);
+      // Multifamily listings show their unit count and lowest rent rather than the building's total rent
+      const unitsByProperty = new Map<string, { rent: number; vacant: boolean }[]>();
+      for (const u of await getAllUnits()) {
+        const list = unitsByProperty.get(u.propertyId) ?? [];
+        list.push({ rent: Number(u.rentAmount), vacant: u.status === "vacant" });
+        unitsByProperty.set(u.propertyId, list);
+      }
+      return all
+        .filter((p: any) => p.active !== false)
+        .map((p: any) => {
+          const units = isMultifamily(p.propertyType) ? unitsByProperty.get(p.id) ?? [] : [];
+          const rents = units.map((u) => u.rent).filter((r) => r > 0);
+          return {
+            ...p,
+            unitCount: units.length,
+            vacantUnits: units.filter((u) => u.vacant).length,
+            minUnitRent: rents.length ? Math.min(...rents) : null,
+          };
+        });
     }),
   }),
 

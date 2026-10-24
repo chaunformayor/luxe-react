@@ -4,6 +4,12 @@ import OwnerLayout from "@/components/OwnerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, X, Star, StarOff } from "lucide-react";
+import { priceSuffix, propertyTypeLabel, rentalTypeLabel } from "@shared/propertyKinds";
+
+/** "Duplex · Short-term (STR)" for rentals, "Duplex · For sale" for sale listings. */
+function kindText(p: any) {
+  return `${propertyTypeLabel(p.propertyType)} · ${p.type === "Rent" ? rentalTypeLabel(p.rentalType) : "For sale"}`;
+}
 
 function PropertyModal({ property, onClose }: { property: any; onClose: () => void }) {
   const images: string[] = (() => { try { return JSON.parse(property.images || "[]"); } catch { return []; } })();
@@ -32,11 +38,11 @@ function PropertyModal({ property, onClose }: { property: any; onClose: () => vo
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Type</p>
-              <p className="text-gray-800 mt-0.5">{property.type}</p>
+              <p className="text-gray-800 mt-0.5">{kindText(property)}</p>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Price</p>
-              <p className="text-gray-800 mt-0.5">${parseFloat(property.price).toLocaleString()}</p>
+              <p className="text-gray-800 mt-0.5">${parseFloat(property.price).toLocaleString()}{priceSuffix(property.type, property.rentalType)}</p>
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Size</p>
@@ -114,11 +120,11 @@ export default function OwnerProperties() {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             property.type === "Rent" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
                           }`}>
-                            {property.type}
+                            {kindText(property)}
                           </span>
                         </td>
                         <td className="py-3 px-4 font-semibold text-[#0A1628]">
-                          ${parseFloat(property.price).toLocaleString()}
+                          ${parseFloat(property.price).toLocaleString()}{priceSuffix(property.type, property.rentalType)}
                         </td>
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

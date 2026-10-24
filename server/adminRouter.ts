@@ -25,6 +25,8 @@ import {
   updateUser,
   userLinks,
   deleteUser,
+  syncPropertyTotals,
+  getUnitById,
   createTenant,
   updateTenant,
   getAllUnits,
@@ -43,6 +45,16 @@ import {
 } from "./db";
 import { hashPassword } from "./authRoutes";
 import { deliver, sendOwnerWelcomeEmail, sendTestEmail } from "./email";
+import { PROPERTY_TYPE_VALUES, RENTAL_TYPE_VALUES, isMultifamily } from "../shared/propertyKinds";
+
+const unitInput = z.object({
+  unitNumber: z.string().trim().min(1),
+  rentAmount: z.string().min(1),
+  beds: z.number().int().min(0).nullable().optional(),
+  baths: z.number().min(0).nullable().optional(),
+  sqft: z.number().int().min(0).nullable().optional(),
+  status: z.enum(["vacant", "occupied", "maintenance"]).optional(),
+});
 
 // Admin role check middleware
 const adminProcedure = protectedProcedure.use(async (opts) => {
@@ -77,6 +89,8 @@ export const adminRouter = router({
         zipCode: z.string(),
         price: z.string(),
         type: z.enum(["Rent", "Sale"]),
+        propertyType: z.enum(PROPERTY_TYPE_VALUES).default("single_family"),
+        rentalType: z.enum(RENTAL_TYPE_VALUES).default("long_term"),
         beds: z.number(),
         baths: z.number(),
         sqft: z.number(),
@@ -84,14 +98,22 @@ export const adminRouter = router({
         amenities: z.string().optional(),
         images: z.string().optional(),
         featured: z.boolean().optional(),
+        active: z.boolean().optional(),
         ownerId: z.string().optional(),
+        // A multifamily's units, entered on the same form
+        units: z.array(unitInput).max(200).optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
+      const { units, ...data } = input;
       const id = await createProperty({
-        ...input,
+        ...data,
         createdBy: ctx.user.id,
       });
+      if (units?.length && isMultifamily(data.propertyType)) {
+        for (const unit of units) await createUnit({ propertyId: id, ...unit });
+        await syncPropertyTotals(id);
+      }
       return { id };
     }),
 
@@ -106,6 +128,8 @@ export const adminRouter = router({
         zipCode: z.string().optional(),
         price: z.string().optional(),
         type: z.enum(["Rent", "Sale"]).optional(),
+        propertyType: z.enum(PROPERTY_TYPE_VALUES).optional(),
+        rentalType: z.enum(RENTAL_TYPE_VALUES).optional(),
         beds: z.number().optional(),
         baths: z.number().optional(),
         sqft: z.number().optional(),
@@ -120,6 +144,7 @@ export const adminRouter = router({
     .mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateProperty(id, data);
+      await syncPropertyTotals(id);
       return { success: true };
     }),
 
@@ -272,34 +297,29 @@ export const adminRouter = router({
     }),
 
   createUnit: adminProcedure
-    .input(z.object({
-      propertyId: z.string(),
-      unitNumber: z.string().min(1),
-      rentAmount: z.string().min(1),
-      status: z.enum(["vacant", "occupied", "maintenance"]).optional(),
-    }))
+    .input(unitInput.extend({ propertyId: z.string() }))
     .mutation(async ({ input }) => {
       const id = await createUnit(input);
+      await syncPropertyTotals(input.propertyId);
       return { id, success: true };
     }),
 
   updateUnit: adminProcedure
-    .input(z.object({
-      id: z.string(),
-      unitNumber: z.string().optional(),
-      rentAmount: z.string().optional(),
-      status: z.enum(["vacant", "occupied", "maintenance"]).optional(),
-    }))
+    .input(unitInput.partial().extend({ id: z.string() }))
     .mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      await updateUnit(id, data);
+      const { id, baths, ...data } = input;
+      await updateUnit(id, { ...data, ...(baths !== undefined ? { baths: baths === null ? null : String(baths) } : {}) });
+      const unit = await getUnitById(id);
+      if (unit) await syncPropertyTotals(unit.propertyId);
       return { success: true };
     }),
 
   deleteUnit: adminProcedure
     .input(z.string())
     .mutation(async ({ input }) => {
+      const unit = await getUnitById(input);
       await deleteUnit(input);
+      if (unit) await syncPropertyTotals(unit.propertyId);
       return { success: true };
     }),
 

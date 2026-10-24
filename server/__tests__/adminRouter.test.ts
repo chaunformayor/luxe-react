@@ -9,6 +9,7 @@ vi.mock("../db", () => ({
   getPropertyById: vi.fn(),
   createProperty: vi.fn(),
   updateProperty: vi.fn(),
+  syncPropertyTotals: vi.fn(),
   deleteProperty: vi.fn(),
   getAllInquiries: vi.fn(),
   getInquiryById: vi.fn(),

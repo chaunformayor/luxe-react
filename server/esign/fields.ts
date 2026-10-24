@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { properties, tenants, units, users } from "../../drizzle/schema";
 import { requireDb } from "../documentsRouter";
+import { isMultifamily, propertyTypeLabel, rentalTypeLabel } from "../../shared/propertyKinds";
 
 /** Placeholders the site can fill in by itself. Anything else in a template is typed in when sending. */
 export const STANDARD_FIELDS: { key: string; label: string; source: string }[] = [
@@ -15,6 +16,7 @@ export const STANDARD_FIELDS: { key: string; label: string; source: string }[] =
   { key: "property_state", label: "State", source: "Property" },
   { key: "property_zip", label: "ZIP", source: "Property" },
   { key: "property_full_address", label: "Full address", source: "Property (street, city, state ZIP)" },
+  { key: "property_type", label: "Property type", source: "Property (e.g. Duplex, or Duplex · Short-term (STR))" },
   { key: "property_beds", label: "Bedrooms", source: "Property" },
   { key: "properties", label: "Properties list", source: "Repeating {{#properties}}…{{/properties}} table row — one row per property you pick" },
   { key: "property_baths", label: "Bathrooms", source: "Property" },
@@ -49,6 +51,19 @@ export type FieldContext = { tenantId?: string | null; ownerUserId?: string | nu
 
 type PropertyRow = typeof properties.$inferSelect;
 
+/** "Duplex", or "Duplex · Short-term (STR)" when it isn't a long-term rental. */
+function propertyKind(p: PropertyRow) {
+  return p.rentalType && p.rentalType !== "long_term"
+    ? `${propertyTypeLabel(p.propertyType)} · ${rentalTypeLabel(p.rentalType)}`
+    : propertyTypeLabel(p.propertyType);
+}
+
+/** Listed rent, with "/night" for short-term rentals; blank for sale listings. */
+function listedRent(p: PropertyRow) {
+  if (p.type !== "Rent") return "";
+  return p.rentalType === "short_term" ? `${money(p.price)}/night` : money(p.price);
+}
+
 /** One row of a {{#properties}} list; "_id" lets the send form keep edits when the selection changes. */
 function propertyRowValues(p: PropertyRow) {
   return {
@@ -59,9 +74,10 @@ function propertyRowValues(p: PropertyRow) {
     property_state: p.state,
     property_zip: p.zipCode,
     property_full_address: `${p.address}, ${p.city}, ${p.state} ${p.zipCode}`,
+    property_type: propertyKind(p),
     property_beds: String(p.beds),
     property_baths: String(Number(p.baths)),
-    target_rent: p.type === "Rent" ? money(p.price) : "",
+    target_rent: listedRent(p),
   };
 }
 
@@ -120,9 +136,13 @@ export async function resolveFieldValues(ctx: FieldContext): Promise<Record<stri
       values.property_state = p.state;
       values.property_zip = p.zipCode;
       values.property_full_address = `${p.address}, ${p.city}, ${p.state} ${p.zipCode}`;
+      values.property_type = propertyKind(p);
       values.property_beds = String(p.beds);
       values.property_baths = String(Number(p.baths));
-      if (!values.monthly_rent && p.type === "Rent") values.monthly_rent = money(p.price);
+      // A multifamily's price is the whole building's rent, so a lease's rent comes from the tenant's unit instead
+      if (!values.monthly_rent && p.type === "Rent" && p.rentalType !== "short_term" && !isMultifamily(p.propertyType)) {
+        values.monthly_rent = money(p.price);
+      }
       ownerId ??= p.ownerId ?? null;
     }
   }
