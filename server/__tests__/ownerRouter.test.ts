@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ownerRouter } from "../ownerRouter";
 import * as db from "../db";
 
@@ -11,10 +11,15 @@ vi.mock("../db", () => ({
   getOwnerMaintenanceRequests: vi.fn(),
   getOwnerDocuments: vi.fn(),
   getOwnerStats: vi.fn(),
+  getPropertyById: vi.fn(),
   updateProperty: vi.fn(),
 }));
 
 describe("Owner Router", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe("Dashboard Statistics", () => {
     it("should return owner stats", async () => {
       const mockStats = {
@@ -72,6 +77,7 @@ describe("Owner Router", () => {
     });
 
     it("should update property", async () => {
+      vi.mocked(db.getPropertyById).mockResolvedValue({ id: "prop_1", ownerId: "owner1" } as any);
       vi.mocked(db.updateProperty).mockResolvedValue(undefined);
 
       const caller = ownerRouter.createCaller({
@@ -80,14 +86,92 @@ describe("Owner Router", () => {
         res: {} as any,
       } as any);
 
-      const result = await caller.updateProperty({
-        id: "prop_1",
-        name: "Updated Apartment",
-        active: false,
-      });
+      const result = await caller.updateProperty({ id: "prop_1", featured: true });
 
       expect(result).toEqual({ success: true });
-      expect(db.updateProperty).toHaveBeenCalled();
+      expect(db.getPropertyById).toHaveBeenCalledWith("prop_1");
+      expect(db.updateProperty).toHaveBeenCalledWith("prop_1", { featured: true });
+    });
+
+    it("should not let an owner update another owner's property", async () => {
+      vi.mocked(db.getPropertyById).mockResolvedValue({ id: "prop_2", ownerId: "owner2" } as any);
+
+      const caller = ownerRouter.createCaller({
+        user: { id: "owner1", role: "owner", name: "Property Owner" },
+        req: {} as any,
+        res: {} as any,
+      } as any);
+
+      await expect(caller.updateProperty({ id: "prop_2", featured: true })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect(db.updateProperty).not.toHaveBeenCalled();
+    });
+
+    it("should not update a property that doesn't exist", async () => {
+      vi.mocked(db.getPropertyById).mockResolvedValue(null);
+
+      const caller = ownerRouter.createCaller({
+        user: { id: "owner1", role: "owner", name: "Property Owner" },
+        req: {} as any,
+        res: {} as any,
+      } as any);
+
+      await expect(caller.updateProperty({ id: "prop_missing", featured: true })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect(db.updateProperty).not.toHaveBeenCalled();
+    });
+
+    it("should only let owners change the featured flag", async () => {
+      vi.mocked(db.getPropertyById).mockResolvedValue({ id: "prop_1", ownerId: "owner1" } as any);
+      vi.mocked(db.updateProperty).mockResolvedValue(undefined);
+
+      const caller = ownerRouter.createCaller({
+        user: { id: "owner1", role: "owner", name: "Property Owner" },
+        req: {} as any,
+        res: {} as any,
+      } as any);
+
+      await caller.updateProperty({
+        id: "prop_1",
+        featured: false,
+        name: "Renamed",
+        price: "1",
+        active: false,
+        ownerId: "owner2",
+      } as any);
+
+      expect(db.updateProperty).toHaveBeenCalledWith("prop_1", { featured: false });
+    });
+
+    it("should get a property the owner owns by id", async () => {
+      const mockProperty = { id: "prop_1", name: "Apartment 1", ownerId: "owner1" };
+      vi.mocked(db.getPropertyById).mockResolvedValue(mockProperty as any);
+
+      const caller = ownerRouter.createCaller({
+        user: { id: "owner1", role: "owner", name: "Property Owner" },
+        req: {} as any,
+        res: {} as any,
+      } as any);
+
+      const result = await caller.getPropertyById("prop_1");
+      expect(result).toEqual(mockProperty);
+      expect(db.getPropertyById).toHaveBeenCalledWith("prop_1");
+    });
+
+    it("should not return another owner's property by id", async () => {
+      vi.mocked(db.getPropertyById).mockResolvedValue({ id: "prop_2", ownerId: "owner2" } as any);
+
+      const caller = ownerRouter.createCaller({
+        user: { id: "owner1", role: "owner", name: "Property Owner" },
+        req: {} as any,
+        res: {} as any,
+      } as any);
+
+      await expect(caller.getPropertyById("prop_2")).rejects.toMatchObject({ code: "NOT_FOUND" });
+      // The id is a property id, never an owner id to list someone else's portfolio with
+      expect(db.getOwnerProperties).not.toHaveBeenCalled();
     });
   });
 
@@ -227,12 +311,10 @@ describe("Owner Router", () => {
         res: {} as any,
       } as any);
 
-      try {
-        await caller.getProperties();
-        expect.fail("Should have thrown authorization error");
-      } catch (error: any) {
-        expect(error.message).toContain("Owner access required");
-      }
+      await expect(caller.getProperties()).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: expect.stringContaining("Owner access required"),
+      });
     });
 
     it("should allow admin users", async () => {

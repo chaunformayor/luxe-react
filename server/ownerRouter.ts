@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "./_core/trpc";
 import {
   getOwnerProperties,
@@ -8,6 +9,7 @@ import {
   getOwnerMaintenanceRequests,
   getOwnerDocuments,
   getOwnerStats,
+  getPropertyById,
   updateProperty,
   updateUser,
 } from "./db";
@@ -15,10 +17,19 @@ import { hashPassword, verifyPassword } from "./authRoutes";
 // Owner role check middleware
 const ownerProcedure = protectedProcedure.use(async (opts) => {
   if (opts.ctx.user?.role !== "owner" && opts.ctx.user?.role !== "admin") {
-    throw new Error("Unauthorized: Owner access required");
+    throw new TRPCError({ code: "FORBIDDEN", message: "Unauthorized: Owner access required" });
   }
   return opts.next();
 });
+
+/** Loads a property only if the signed-in owner owns it; another owner's property looks the same as a missing one. */
+async function getOwnedProperty(ownerId: string, propertyId: string) {
+  const property = await getPropertyById(propertyId);
+  if (!property || property.ownerId !== ownerId) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Property not found" });
+  }
+  return property;
+}
 
 export const ownerRouter = router({
   // Dashboard
@@ -31,35 +42,17 @@ export const ownerRouter = router({
     return await getOwnerProperties(ctx.user.id);
   }),
 
-  getPropertyById: ownerProcedure.input(z.string()).query(async ({ input }) => {
-    // In production, verify ownership
-    return await getOwnerProperties(input);
+  getPropertyById: ownerProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    return await getOwnedProperty(ctx.user.id, input);
   }),
 
+  // Owners can only star their own listings. Listing content (name, price, photos, etc.) and
+  // whether it shows on the public site (active) are managed by Luxe in the admin portal.
   updateProperty: ownerProcedure
-    .input(
-      z.object({
-        id: z.string(),
-        name: z.string().optional(),
-        address: z.string().optional(),
-        city: z.string().optional(),
-        state: z.string().optional(),
-        zipCode: z.string().optional(),
-        price: z.string().optional(),
-        type: z.enum(["Rent", "Sale"]).optional(),
-        beds: z.number().optional(),
-        baths: z.number().optional(),
-        sqft: z.number().optional(),
-        description: z.string().optional(),
-        amenities: z.string().optional(),
-        images: z.string().optional(),
-        featured: z.boolean().optional(),
-        active: z.boolean().optional(),
-      })
-    )
-    .mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      await updateProperty(id, data);
+    .input(z.object({ id: z.string(), featured: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await getOwnedProperty(ctx.user.id, input.id);
+      await updateProperty(input.id, { featured: input.featured });
       return { success: true };
     }),
 
